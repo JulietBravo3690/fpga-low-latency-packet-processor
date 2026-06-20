@@ -11,4 +11,16 @@
 
 ## Next Step
 
-Start learning Ethernet frame structure and build the first Python packet generator.
+Start learning Ethernet frame structure and build the first Python packet generator. 
+
+## Day 2
+
+- Reviewed Ethernet II, IPv4, and UDP packet structure
+- Documented packet byte offsets
+- Created a Python script to generate a valid Ethernet/IPv4/UDP packet
+- Verified packet length and important header fields
+- Prepared packet generator for future parser testbenches
+
+## Next Step
+
+Build the first SystemVerilog input module that receives packet data one byte per clock cycle.

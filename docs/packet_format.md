@@ -1,16 +1,11 @@
 # Packet Format Notes
 
-This project will initially support Ethernet II frames carrying IPv4 packets with UDP payloads.
+This project initially supports Ethernet II frames carrying IPv4 packets with UDP payloads.
 
-## Ethernet Header
+The FPGA will receive one byte of packet data per clock cycle. Parser modules will extract fields from fixed byte positions.
 
-| Field | Size |
-|---|---:|
-| Destination MAC | 6 bytes |
-| Source MAC | 6 bytes |
-| EtherType | 2 bytes |
-
-EtherType for IPv4:
+## High-Level Packet Layout
 
 ```text
-0x0800
+Ethernet Header | IPv4 Header | UDP Header | Payload
+14 bytes        | 20 bytes    | 8 bytes    | variable
