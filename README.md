@@ -21,6 +21,13 @@ Modern trading firms, defense systems, and high-performance computing platforms 
 - Simulated market-data packet decoding
 - Python-generated packet testing
 
+## Current Status
+
+- Day 1: Repository initialized and project structure created.
+- Day 2: Packet format documented and UDP packet generator created.
+- Day 3: Packet stream input module implemented and simulated.
+- Day 4: Ethernet parser implemented and verified in simulation.
+
 ## System Architecture
 
 ```text
@@ -43,10 +50,3 @@ Traffic Statistics Engine
       |
       v
 Market Data Decoder
-
-## Current Status
-
-- Day 1: Repository initialized and project structure created.
-- Day 2: Packet format documented and UDP packet generator created.
-- Day 3: Packet stream input module implemented and simulated.
-- Day 4: Ethernet parser implemented and verified in simulation.
