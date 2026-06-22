@@ -37,4 +37,19 @@ Build the first SystemVerilog input module that receives packet data one byte pe
 
 ## Next Step
 
-Build the Ethernet parser to extract destination MAC, source MAC, and EtherType from the incoming packet stream.
+Build the Ethernet parser to extract destination MAC, source MAC, and EtherType from the incoming packet stream. 
+
+## Day 4
+
+- Built `ethernet_parser.sv`
+- Added byte-position-based Ethernet header parsing
+- Extracted destination MAC, source MAC, and EtherType
+- Added IPv4 frame detection using EtherType `0x0800`
+- Added unsupported EtherType detection
+- Added short-frame parser error detection
+- Created and ran `tb_ethernet_parser.sv`
+- Verified parser behavior using three simulation tests
+
+## Next Step
+
+Build the IPv4 parser to extract version, IHL, total length, protocol, source IP, and destination IP.
