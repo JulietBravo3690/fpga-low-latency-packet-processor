@@ -82,3 +82,20 @@ Build the UDP parser to extract source port, destination port, UDP length, and U
 ## Next Step
 
 Build the packet classifier to assign packets into categories such as market data, DNS, web traffic, and unknown traffic.
+
+## Day 7
+
+- Designed the packet classification stage as the first major metadata-processing module
+- Separated the project conceptually into a data plane and metadata plane
+- Built `packet_classifier.sv`
+- Added classification rules for malformed packets, non-IPv4 traffic, market data, DNS, web traffic, control traffic, trusted endpoints, and unknown traffic
+- Added configurable unknown-traffic drop behavior
+- Created `tb_packet_classifier.sv`
+- Verified seven packet-classification scenarios in simulation
+- Added `docs/classification_rules.md`
+- Updated the Makefile with `make test-classifier`
+- Updated project architecture documentation
+
+## Next Step
+
+Build the top-level packet processor module that connects the parser outputs into the classifier and creates the first end-to-end metadata pipeline.

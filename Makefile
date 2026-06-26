@@ -3,7 +3,7 @@ IVERILOG = iverilog
 VVP = vvp
 SV_FLAGS = -g2012
 
-.PHONY: test-stream test-eth test-ipv4 test-udp test-all clean
+.PHONY: test-stream test-eth test-ipv4 test-udp test-classifier test-all clean
 
 test-stream:
 	mkdir -p $(SIM_DIR)
@@ -25,7 +25,12 @@ test-udp:
 	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/udp_parser_tb.vvp rtl/udp_parser.sv tb/tb_udp_parser.sv
 	$(VVP) $(SIM_DIR)/udp_parser_tb.vvp
 
-test-all: test-stream test-eth test-ipv4 test-udp
+test-classifier:
+	mkdir -p $(SIM_DIR)
+	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/packet_classifier_tb.vvp rtl/packet_classifier.sv tb/tb_packet_classifier.sv
+	$(VVP) $(SIM_DIR)/packet_classifier_tb.vvp
+
+test-all: test-stream test-eth test-ipv4 test-udp test-classifier
 
 clean:
 	rm -f $(SIM_DIR)/*.vvp

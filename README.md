@@ -29,6 +29,7 @@ Modern trading firms, defense systems, and high-performance computing platforms 
 - Day 4: Ethernet parser implemented and verified in simulation.
 - Day 5: IPv4 parser implemented and verified in simulation.
 - Day 6: UDP parser implemented and verified in simulation.
+- Day 7: Packet classifier implemented and verified in simulation.
 
 
 ## System Architecture
