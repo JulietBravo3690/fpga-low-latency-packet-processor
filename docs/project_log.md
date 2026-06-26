@@ -53,3 +53,18 @@ Build the Ethernet parser to extract destination MAC, source MAC, and EtherType 
 ## Next Step
 
 Build the IPv4 parser to extract version, IHL, total length, protocol, source IP, and destination IP.
+
+## Day 5
+
+- Built `ipv4_parser.sv`
+- Parsed IPv4 header fields from Ethernet frame byte offsets
+- Extracted IP version, IHL, total length, protocol, source IP, and destination IP
+- Added UDP/TCP/ICMP protocol detection
+- Added non-IPv4 frame detection
+- Added short IPv4 packet error detection
+- Created and ran `tb_ipv4_parser.sv`
+- Verified IPv4 parsing through simulation
+
+## Next Step
+
+Build the UDP parser to extract source port, destination port, UDP length, and UDP checksum.

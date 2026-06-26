@@ -6,6 +6,7 @@ sim/
 *.out
 *.jou
 *.wdb
+*.vvp
 
 # Python
 __pycache__/

@@ -27,6 +27,7 @@ Modern trading firms, defense systems, and high-performance computing platforms 
 - Day 2: Packet format documented and UDP packet generator created.
 - Day 3: Packet stream input module implemented and simulated.
 - Day 4: Ethernet parser implemented and verified in simulation.
+- Day 5: IPv4 parser implemented and verified in simulation.
 
 ## System Architecture
 
