@@ -68,3 +68,17 @@ Build the IPv4 parser to extract version, IHL, total length, protocol, source IP
 ## Next Step
 
 Build the UDP parser to extract source port, destination port, UDP length, and UDP checksum.
+
+## Day 6
+
+- Built `udp_parser.sv`
+- Parsed UDP source port, destination port, length, and checksum
+- Added UDP protocol validation from the IPv4 protocol field
+- Added market-data-style packet detection for destination ports 5000-6000
+- Added short UDP header error detection
+- Created and ran `tb_udp_parser.sv`
+- Added a Makefile to simplify simulation commands
+
+## Next Step
+
+Build the packet classifier to assign packets into categories such as market data, DNS, web traffic, and unknown traffic.

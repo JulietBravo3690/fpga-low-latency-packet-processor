@@ -28,6 +28,8 @@ Modern trading firms, defense systems, and high-performance computing platforms 
 - Day 3: Packet stream input module implemented and simulated.
 - Day 4: Ethernet parser implemented and verified in simulation.
 - Day 5: IPv4 parser implemented and verified in simulation.
+- Day 6: UDP parser implemented and verified in simulation.
+
 
 ## System Architecture
 
@@ -51,3 +53,10 @@ Traffic Statistics Engine
       |
       v
 Market Data Decoder
+
+## Running Simulations
+
+Run an individual module test:
+
+```bash
+make test-udp
