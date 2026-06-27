@@ -30,6 +30,7 @@ Modern trading firms, defense systems, and high-performance computing platforms 
 - Day 5: IPv4 parser implemented and verified in simulation.
 - Day 6: UDP parser implemented and verified in simulation.
 - Day 7: Packet classifier implemented and verified in simulation.
+- Day 8: Top-level packet processor integrated and verified end-to-end.
 
 
 ## System Architecture
@@ -61,3 +62,14 @@ Run an individual module test:
 
 ```bash
 make test-udp
+
+Run the top-level packet processor test:
+
+```bash
+make test-top
+
+```markdown
+Run all tests:
+
+```bash
+make test-all

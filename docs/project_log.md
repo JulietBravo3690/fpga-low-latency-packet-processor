@@ -99,3 +99,23 @@ Build the packet classifier to assign packets into categories such as market dat
 ## Next Step
 
 Build the top-level packet processor module that connects the parser outputs into the classifier and creates the first end-to-end metadata pipeline.
+
+
+---
+
+## Day 8
+
+- Built `top_packet_processor.sv`
+- Integrated Ethernet parser, IPv4 parser, UDP parser, metadata completion logic, and packet classifier
+- Created the first end-to-end packet-processing pipeline
+- Added metadata registers for Ethernet, IPv4, and UDP fields
+- Added classifier trigger logic based on parser error, non-IPv4 detection, and UDP header completion
+- Created `tb_top_packet_processor.sv`
+- Verified end-to-end classification for market data, DNS, trusted traffic, unknown traffic, non-IPv4 traffic, and malformed packets
+- Added `docs/metadata_pipeline.md`
+- Updated Makefile with `make test-top`
+- Updated architecture documentation
+
+## Next Step
+
+Build the traffic statistics engine to count total packets, allowed packets, dropped packets, market-data packets, DNS packets, malformed packets, and total classified packets.

@@ -10,6 +10,31 @@ The design is organized into two conceptual paths.
 
 The data plane carries the raw packet byte stream through the parser pipeline.
 
+## Top-Level Packet Processor
+
+The top-level module integrates the Ethernet parser, IPv4 parser, UDP parser, metadata completion logic, and packet classifier.
+
+```text
+Raw Packet Stream
+        |
+        v
+Ethernet Parser
+        |
+        v
+IPv4 Parser
+        |
+        v
+UDP Parser
+        |
+        v
+Metadata Completion Unit
+        |
+        v
+Packet Classifier
+        |
+        v
+Class + Allow/Drop Decision
+
 ```text
 data_in
 valid_in
