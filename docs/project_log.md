@@ -119,3 +119,20 @@ Build the top-level packet processor module that connects the parser outputs int
 ## Next Step
 
 Build the traffic statistics engine to count total packets, allowed packets, dropped packets, market-data packets, DNS packets, malformed packets, and total classified packets.
+
+## Day 9
+
+- Built `traffic_stats.sv`
+- Added counters for total packets, allowed packets, dropped packets, malformed packets, non-IPv4 packets, market-data packets, DNS packets, web packets, control packets, trusted packets, and unknown packets
+- Added total IPv4 byte counting
+- Added last-packet-length tracking
+- Added `clear_counters` control signal
+- Added a register-style statistics read interface
+- Created `tb_traffic_stats.sv`
+- Verified counter updates, register reads, and counter clearing in simulation
+- Added `docs/statistics_engine.md`
+- Updated Makefile with `make test-stats`
+
+## Next Step
+
+Integrate the traffic statistics engine into the top-level packet processor so end-to-end classified packets automatically update hardware counters.

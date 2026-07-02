@@ -16,7 +16,8 @@ Modern trading firms, defense systems, and high-performance computing platforms 
 - IPv4 header parsing
 - UDP packet parsing
 - Packet classification
-- Real-time traffic statistics
+- Traffic statistics counters
+- Register-style statistics readout
 - Cycle-level latency measurement
 - Simulated market-data packet decoding
 - Python-generated packet testing
@@ -31,6 +32,7 @@ Modern trading firms, defense systems, and high-performance computing platforms 
 - Day 6: UDP parser implemented and verified in simulation.
 - Day 7: Packet classifier implemented and verified in simulation.
 - Day 8: Top-level packet processor integrated and verified end-to-end.
+- Day 9: Traffic statistics engine implemented and verified in simulation.
 
 
 ## System Architecture
@@ -73,3 +75,8 @@ Run all tests:
 
 ```bash
 make test-all
+
+Run the traffic statistics engine test:
+
+```bash
+make test-stats

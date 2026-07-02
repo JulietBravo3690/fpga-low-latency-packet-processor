@@ -60,3 +60,15 @@ Classifier
       v
 Statistics / Market Data Decoder
 
+## Traffic Statistics Engine
+
+After classification, the traffic statistics engine counts packet events.
+
+```text
+Packet Classifier
+        |
+        v
+Traffic Statistics Engine
+        |
+        v
+Counters / Register Read Interface
