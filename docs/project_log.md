@@ -136,3 +136,18 @@ Build the traffic statistics engine to count total packets, allowed packets, dro
 ## Next Step
 
 Integrate the traffic statistics engine into the top-level packet processor so end-to-end classified packets automatically update hardware counters.
+
+## Day 10
+
+- Integrated `traffic_stats.sv` into `top_packet_processor.sv`
+- Connected classifier events directly into hardware traffic counters
+- Added top-level statistics read interface signals
+- Added top-level counter outputs for total packets, allowed packets, dropped packets, packet classes, and total IPv4 bytes
+- Updated `tb_top_packet_processor.sv` to verify end-to-end classification and statistics updates
+- Verified that market-data, DNS, trusted, unknown, non-IPv4, and malformed packets update the correct counters
+- Verified register-style statistics reads from the integrated top-level design
+- Verified counter clearing through the top-level module
+
+## Next Step
+
+Build a latency tracker to measure cycle-level delay from start-of-packet to Ethernet parsing, IPv4 parsing, UDP parsing, classification, and statistics update.

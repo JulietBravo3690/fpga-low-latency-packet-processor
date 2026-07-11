@@ -32,7 +32,7 @@ test-classifier:
 
 test-top:
 	mkdir -p $(SIM_DIR)
-	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/top_packet_processor_tb.vvp rtl/ethernet_parser.sv rtl/ipv4_parser.sv rtl/udp_parser.sv rtl/packet_classifier.sv rtl/top_packet_processor.sv tb/tb_top_packet_processor.sv
+	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/top_packet_processor_tb.vvp rtl/ethernet_parser.sv rtl/ipv4_parser.sv rtl/udp_parser.sv rtl/packet_classifier.sv rtl/traffic_stats.sv rtl/top_packet_processor.sv tb/tb_top_packet_processor.sv
 	$(VVP) $(SIM_DIR)/top_packet_processor_tb.vvp
 
 test-stats:
@@ -40,7 +40,7 @@ test-stats:
 	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/traffic_stats_tb.vvp rtl/traffic_stats.sv tb/tb_traffic_stats.sv
 	$(VVP) $(SIM_DIR)/traffic_stats_tb.vvp
 
-test-all: test-stream test-eth test-ipv4 test-udp test-classifier test-top test-stats
+test-all: test-stream test-eth test-ipv4 test-udp test-classifier test-stats test-top
 
 clean:
 	rm -f $(SIM_DIR)/*.vvp

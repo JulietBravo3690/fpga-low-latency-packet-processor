@@ -72,3 +72,28 @@ Traffic Statistics Engine
         |
         v
 Counters / Register Read Interface
+
+## Integrated Classification and Statistics Flow
+
+The top-level packet processor now connects the classifier output directly into the traffic statistics engine.
+
+```text
+Raw Packet Stream
+        |
+        v
+Ethernet Parser
+        |
+        v
+IPv4 Parser
+        |
+        v
+UDP Parser
+        |
+        v
+Metadata Completion Unit
+        |
+        v
+Packet Classifier
+        |
+        v
+Traffic Statistics Engine

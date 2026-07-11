@@ -9,6 +9,10 @@ module top_packet_processor (
 
     input  logic        drop_unknown,
 
+    input  logic        clear_counters,
+    input  logic        stats_rd_en,
+    input  logic [3:0]  stats_addr,
+
     output logic [7:0]  data_out,
     output logic        valid_out,
     output logic        sop_out,
@@ -46,8 +50,28 @@ module top_packet_processor (
     output logic        web_packet,
     output logic        control_packet,
     output logic        trusted_packet,
-    output logic        unknown_packet
+    output logic        unknown_packet,
+
+    output logic        stats_rd_valid,
+    output logic [31:0] stats_rd_data,
+
+    output logic [31:0] total_packets,
+    output logic [31:0] allowed_packets,
+    output logic [31:0] dropped_packets,
+    output logic [31:0] malformed_packets,
+    output logic [31:0] non_ipv4_packets,
+    output logic [31:0] market_data_packets_count,
+    output logic [31:0] dns_packets_count,
+    output logic [31:0] web_packets_count,
+    output logic [31:0] control_packets_count,
+    output logic [31:0] trusted_packets_count,
+    output logic [31:0] unknown_packets_count,
+    output logic [31:0] total_ipv4_bytes,
+    output logic [15:0] last_packet_length
 );
+
+    localparam [2:0] CLASS_MALFORMED   = 3'd0;
+    localparam [2:0] CLASS_NON_IPV4    = 3'd1;
 
     // ------------------------------------------------------------
     // Ethernet parser wires
@@ -127,15 +151,20 @@ module top_packet_processor (
     logic classifier_metadata_valid;
     logic classifier_parser_error;
 
+    logic stats_packet_length_valid;
+
     assign metadata_ready   = classifier_metadata_valid;
     assign parser_error_any = eth_parser_error | ipv4_parser_error | udp_parser_error;
 
-    // For now, the top-level data output is a simple pass-through.
-    // Later, this can become a filtered output stream.
     assign data_out  = data_in;
     assign valid_out = valid_in;
     assign sop_out   = sop_in;
     assign eop_out   = eop_in;
+
+    assign stats_packet_length_valid =
+        class_valid &&
+        (packet_class != CLASS_MALFORMED) &&
+        (packet_class != CLASS_NON_IPV4);
 
     // ------------------------------------------------------------
     // Parser instances
@@ -258,18 +287,15 @@ module top_packet_processor (
             classifier_metadata_valid <= 1'b0;
             classifier_parser_error   <= 1'b0;
         end else begin
-            // Default one-cycle pulse into classifier
             classifier_metadata_valid <= 1'b0;
             classifier_parser_error   <= 1'b0;
 
-            // Capture Ethernet metadata after Ethernet parser completes
             if (eth_header_valid) begin
                 dest_mac  <= eth_dest_mac;
                 src_mac   <= eth_src_mac;
                 ethertype <= eth_ethertype;
             end
 
-            // Capture IPv4 metadata after IPv4 parser completes
             if (ipv4_header_valid) begin
                 ip_version      <= ipv4_ip_version;
                 ip_ihl          <= ipv4_ip_ihl;
@@ -279,7 +305,6 @@ module top_packet_processor (
                 dst_ip          <= ipv4_dst_ip;
             end
 
-            // Capture UDP metadata after UDP parser completes
             if (udp_header_valid) begin
                 udp_src_port <= udp_src_port_w;
                 udp_dst_port <= udp_dst_port_w;
@@ -287,21 +312,13 @@ module top_packet_processor (
                 udp_checksum <= udp_checksum_w;
             end
 
-            // Highest priority: malformed packets
             if (eth_parser_error || ipv4_parser_error || udp_parser_error) begin
                 classifier_metadata_valid <= 1'b1;
                 classifier_parser_error   <= 1'b1;
-            end
-
-            // Non-IPv4 packets can be classified once EtherType is known
-            else if (udp_not_ipv4) begin
+            end else if (udp_not_ipv4) begin
                 classifier_metadata_valid <= 1'b1;
                 classifier_parser_error   <= 1'b0;
-            end
-
-            // Fully supported end-to-end path:
-            // Ethernet + IPv4 + UDP metadata is complete after UDP header valid.
-            else if (udp_header_valid) begin
+            end else if (udp_header_valid) begin
                 classifier_metadata_valid <= 1'b1;
                 classifier_parser_error   <= 1'b0;
             end
@@ -317,7 +334,6 @@ module top_packet_processor (
         .rst_n(rst_n),
 
         .metadata_valid(classifier_metadata_valid),
-
         .parser_error(classifier_parser_error),
 
         .ethertype(ethertype),
@@ -343,6 +359,46 @@ module top_packet_processor (
         .control_packet(control_packet),
         .trusted_packet(trusted_packet),
         .unknown_packet(unknown_packet)
+    );
+
+    // ------------------------------------------------------------
+    // Traffic statistics engine
+    // ------------------------------------------------------------
+
+    traffic_stats u_traffic_stats (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .clear_counters(clear_counters),
+
+        .event_valid(class_valid),
+        .packet_class(packet_class),
+        .allow_packet(allow_packet),
+        .drop_packet(drop_packet),
+
+        .packet_length(ip_total_length),
+        .packet_length_valid(stats_packet_length_valid),
+
+        .stats_rd_en(stats_rd_en),
+        .stats_addr(stats_addr),
+        .stats_rd_valid(stats_rd_valid),
+        .stats_rd_data(stats_rd_data),
+
+        .total_packets(total_packets),
+        .allowed_packets(allowed_packets),
+        .dropped_packets(dropped_packets),
+
+        .malformed_packets(malformed_packets),
+        .non_ipv4_packets(non_ipv4_packets),
+        .market_data_packets(market_data_packets_count),
+        .dns_packets(dns_packets_count),
+        .web_packets(web_packets_count),
+        .control_packets(control_packets_count),
+        .trusted_packets(trusted_packets_count),
+        .unknown_packets(unknown_packets_count),
+
+        .total_ipv4_bytes(total_ipv4_bytes),
+        .last_packet_length(last_packet_length)
     );
 
 endmodule

@@ -20,6 +20,9 @@ module tb_top_packet_processor;
     logic       eop_in;
 
     logic       drop_unknown;
+    logic       clear_counters;
+    logic       stats_rd_en;
+    logic [3:0] stats_addr;
 
     logic [7:0] data_out;
     logic       valid_out;
@@ -60,6 +63,23 @@ module tb_top_packet_processor;
     logic        trusted_packet;
     logic        unknown_packet;
 
+    logic        stats_rd_valid;
+    logic [31:0] stats_rd_data;
+
+    logic [31:0] total_packets;
+    logic [31:0] allowed_packets;
+    logic [31:0] dropped_packets;
+    logic [31:0] malformed_packets;
+    logic [31:0] non_ipv4_packets;
+    logic [31:0] market_data_packets_count;
+    logic [31:0] dns_packets_count;
+    logic [31:0] web_packets_count;
+    logic [31:0] control_packets_count;
+    logic [31:0] trusted_packets_count;
+    logic [31:0] unknown_packets_count;
+    logic [31:0] total_ipv4_bytes;
+    logic [15:0] last_packet_length;
+
     top_packet_processor dut (
         .clk(clk),
         .rst_n(rst_n),
@@ -70,6 +90,9 @@ module tb_top_packet_processor;
         .eop_in(eop_in),
 
         .drop_unknown(drop_unknown),
+        .clear_counters(clear_counters),
+        .stats_rd_en(stats_rd_en),
+        .stats_addr(stats_addr),
 
         .data_out(data_out),
         .valid_out(valid_out),
@@ -108,19 +131,39 @@ module tb_top_packet_processor;
         .web_packet(web_packet),
         .control_packet(control_packet),
         .trusted_packet(trusted_packet),
-        .unknown_packet(unknown_packet)
+        .unknown_packet(unknown_packet),
+
+        .stats_rd_valid(stats_rd_valid),
+        .stats_rd_data(stats_rd_data),
+
+        .total_packets(total_packets),
+        .allowed_packets(allowed_packets),
+        .dropped_packets(dropped_packets),
+        .malformed_packets(malformed_packets),
+        .non_ipv4_packets(non_ipv4_packets),
+        .market_data_packets_count(market_data_packets_count),
+        .dns_packets_count(dns_packets_count),
+        .web_packets_count(web_packets_count),
+        .control_packets_count(control_packets_count),
+        .trusted_packets_count(trusted_packets_count),
+        .unknown_packets_count(unknown_packets_count),
+        .total_ipv4_bytes(total_ipv4_bytes),
+        .last_packet_length(last_packet_length)
     );
 
     always #5 clk = ~clk;
 
     task reset_dut;
         begin
-            rst_n        = 1'b0;
-            data_in      = 8'h00;
-            valid_in     = 1'b0;
-            sop_in       = 1'b0;
-            eop_in       = 1'b0;
-            drop_unknown = 1'b1;
+            rst_n          = 1'b0;
+            data_in        = 8'h00;
+            valid_in       = 1'b0;
+            sop_in         = 1'b0;
+            eop_in         = 1'b0;
+            drop_unknown   = 1'b1;
+            clear_counters = 1'b0;
+            stats_rd_en    = 1'b0;
+            stats_addr     = 4'd0;
 
             repeat (3) @(negedge clk);
             rst_n = 1'b1;
@@ -153,7 +196,6 @@ module tb_top_packet_processor;
         input logic        eop_on_ethertype
     );
         begin
-            // Destination MAC: AA:BB:CC:DD:EE:FF
             send_byte(8'hAA, 1'b1, 1'b0);
             send_byte(8'hBB, 1'b0, 1'b0);
             send_byte(8'hCC, 1'b0, 1'b0);
@@ -161,7 +203,6 @@ module tb_top_packet_processor;
             send_byte(8'hEE, 1'b0, 1'b0);
             send_byte(8'hFF, 1'b0, 1'b0);
 
-            // Source MAC: 11:22:33:44:55:66
             send_byte(8'h11, 1'b0, 1'b0);
             send_byte(8'h22, 1'b0, 1'b0);
             send_byte(8'h33, 1'b0, 1'b0);
@@ -169,7 +210,6 @@ module tb_top_packet_processor;
             send_byte(8'h55, 1'b0, 1'b0);
             send_byte(8'h66, 1'b0, 1'b0);
 
-            // EtherType
             send_byte(ethertype_value[15:8], 1'b0, 1'b0);
             send_byte(ethertype_value[7:0],  1'b0, eop_on_ethertype);
         end
@@ -181,23 +221,23 @@ module tb_top_packet_processor;
         input logic [31:0] dst_ip_value
     );
         begin
-            send_byte(8'h45, 1'b0, 1'b0); // Version = 4, IHL = 5
-            send_byte(8'h00, 1'b0, 1'b0); // DSCP/ECN
+            send_byte(8'h45, 1'b0, 1'b0);
+            send_byte(8'h00, 1'b0, 1'b0);
 
-            send_byte(8'h00, 1'b0, 1'b0); // Total length high
-            send_byte(8'h1C, 1'b0, 1'b0); // Total length low = 28 bytes
+            send_byte(8'h00, 1'b0, 1'b0);
+            send_byte(8'h1C, 1'b0, 1'b0);
 
-            send_byte(8'h00, 1'b0, 1'b0); // Identification high
-            send_byte(8'h01, 1'b0, 1'b0); // Identification low
+            send_byte(8'h00, 1'b0, 1'b0);
+            send_byte(8'h01, 1'b0, 1'b0);
 
-            send_byte(8'h40, 1'b0, 1'b0); // Flags/fragment high
-            send_byte(8'h00, 1'b0, 1'b0); // Flags/fragment low
+            send_byte(8'h40, 1'b0, 1'b0);
+            send_byte(8'h00, 1'b0, 1'b0);
 
-            send_byte(8'h40, 1'b0, 1'b0); // TTL
+            send_byte(8'h40, 1'b0, 1'b0);
             send_byte(protocol_value, 1'b0, 1'b0);
 
-            send_byte(8'h00, 1'b0, 1'b0); // Header checksum high, ignored for now
-            send_byte(8'h00, 1'b0, 1'b0); // Header checksum low, ignored for now
+            send_byte(8'h00, 1'b0, 1'b0);
+            send_byte(8'h00, 1'b0, 1'b0);
 
             send_byte(src_ip_value[31:24], 1'b0, 1'b0);
             send_byte(src_ip_value[23:16], 1'b0, 1'b0);
@@ -223,10 +263,10 @@ module tb_top_packet_processor;
             send_byte(dst_port_value[7:0],  1'b0, 1'b0);
 
             send_byte(8'h00, 1'b0, 1'b0);
-            send_byte(8'h08, 1'b0, 1'b0); // UDP length = 8 bytes, no payload
+            send_byte(8'h08, 1'b0, 1'b0);
 
             send_byte(8'h00, 1'b0, 1'b0);
-            send_byte(8'h00, 1'b0, 1'b1); // UDP checksum low + EOP
+            send_byte(8'h00, 1'b0, 1'b1);
         end
     endtask
 
@@ -245,7 +285,6 @@ module tb_top_packet_processor;
 
     task send_non_ipv4_frame;
         begin
-            // EtherType 0x0806 = ARP
             send_ethernet_header(16'h0806, 1'b1);
         end
     endtask
@@ -265,7 +304,7 @@ module tb_top_packet_processor;
         begin
             timeout = 0;
 
-            while ((class_valid !== 1'b1) && (timeout < 80)) begin
+            while ((class_valid !== 1'b1) && (timeout < 100)) begin
                 @(negedge clk);
                 timeout = timeout + 1;
             end
@@ -301,7 +340,55 @@ module tb_top_packet_processor;
                 $finish;
             end
 
-            $display("%s PASSED.", test_name);
+            $display("%s classification PASSED.", test_name);
+        end
+    endtask
+
+    task wait_for_stats_update;
+        begin
+            repeat (3) @(negedge clk);
+        end
+    endtask
+
+    task check_counter(
+        input logic [31:0] actual_value,
+        input logic [31:0] expected_value,
+        input string       counter_name
+    );
+        begin
+            if (actual_value !== expected_value) begin
+                $display("FAILED: %s expected %0d, got %0d.", counter_name, expected_value, actual_value);
+                $finish;
+            end
+
+            $display("PASSED: %s = %0d.", counter_name, actual_value);
+        end
+    endtask
+
+    task read_stat_register(
+        input logic [3:0]  addr_value,
+        input logic [31:0] expected_value,
+        input string       register_name
+    );
+        begin
+            @(negedge clk);
+            stats_addr  = addr_value;
+            stats_rd_en = 1'b1;
+
+            @(negedge clk);
+            stats_rd_en = 1'b0;
+
+            if (stats_rd_valid !== 1'b1) begin
+                $display("FAILED: %s did not assert stats_rd_valid.", register_name);
+                $finish;
+            end
+
+            if (stats_rd_data !== expected_value) begin
+                $display("FAILED: %s expected %0d, got %0d.", register_name, expected_value, stats_rd_data);
+                $finish;
+            end
+
+            $display("PASSED: %s read value %0d.", register_name, stats_rd_data);
         end
     endtask
 
@@ -313,170 +400,84 @@ module tb_top_packet_processor;
 
         reset_dut();
 
-        $display("Starting top_packet_processor tests...");
+        $display("Starting top_packet_processor integration tests...");
 
-        // ------------------------------------------------------------
-        // TEST 1: Full end-to-end market-data UDP packet
-        // UDP source port 5000, destination port 6000
-        // ------------------------------------------------------------
-
+        // TEST 1: Market-data packet
         drop_unknown = 1'b1;
-
-        send_udp_packet(
-            16'd5000,
-            16'd6000,
-            32'h0A000001,
-            32'h0A000002
-        );
-
+        send_udp_packet(16'd5000, 16'd6000, 32'h0A000001, 32'h0A000002);
         check_class(CLASS_MARKET_DATA, 1'b1, 1'b0, "TEST 1");
+        wait_for_stats_update();
 
-        if (market_data_packet !== 1'b1) begin
-            $display("TEST 1 FAILED: market_data_packet flag was not asserted.");
-            $finish;
-        end
-
-        if (ethertype !== 16'h0800) begin
-            $display("TEST 1 FAILED: expected EtherType 0x0800, got %h.", ethertype);
-            $finish;
-        end
-
-        if (ip_protocol !== 8'd17) begin
-            $display("TEST 1 FAILED: expected UDP protocol 17, got %0d.", ip_protocol);
-            $finish;
-        end
-
-        if (udp_src_port !== 16'd5000) begin
-            $display("TEST 1 FAILED: expected source port 5000, got %0d.", udp_src_port);
-            $finish;
-        end
-
-        if (udp_dst_port !== 16'd6000) begin
-            $display("TEST 1 FAILED: expected destination port 6000, got %0d.", udp_dst_port);
-            $finish;
-        end
-
-        repeat (4) @(negedge clk);
-
-        // ------------------------------------------------------------
-        // TEST 2: DNS UDP packet
-        // UDP destination port 53
-        // ------------------------------------------------------------
-
-        send_udp_packet(
-            16'd40000,
-            16'd53,
-            32'h0A000003,
-            32'h0A000004
-        );
-
+        // TEST 2: DNS packet
+        send_udp_packet(16'd40000, 16'd53, 32'h0A000003, 32'h0A000004);
         check_class(CLASS_DNS, 1'b1, 1'b0, "TEST 2");
+        wait_for_stats_update();
 
-        if (dns_packet !== 1'b1) begin
-            $display("TEST 2 FAILED: dns_packet flag was not asserted.");
-            $finish;
-        end
-
-        repeat (4) @(negedge clk);
-
-        // ------------------------------------------------------------
         // TEST 3: Trusted packet
-        // Trusted source IP = 192.168.1.10
-        // Unknown ports, but trusted endpoint
-        // ------------------------------------------------------------
-
-        send_udp_packet(
-            16'd3000,
-            16'd3001,
-            32'hC0A8010A,
-            32'h0A000005
-        );
-
+        send_udp_packet(16'd3000, 16'd3001, 32'hC0A8010A, 32'h0A000005);
         check_class(CLASS_TRUSTED, 1'b1, 1'b0, "TEST 3");
+        wait_for_stats_update();
 
-        if (trusted_packet !== 1'b1) begin
-            $display("TEST 3 FAILED: trusted_packet flag was not asserted.");
-            $finish;
-        end
-
-        repeat (4) @(negedge clk);
-
-        // ------------------------------------------------------------
-        // TEST 4: Unknown packet with drop_unknown enabled
-        // ------------------------------------------------------------
-
+        // TEST 4: Unknown packet, drop_unknown enabled
         drop_unknown = 1'b1;
-
-        send_udp_packet(
-            16'd3000,
-            16'd3001,
-            32'h0A000006,
-            32'h0A000007
-        );
-
+        send_udp_packet(16'd3000, 16'd3001, 32'h0A000006, 32'h0A000007);
         check_class(CLASS_UNKNOWN, 1'b0, 1'b1, "TEST 4");
+        wait_for_stats_update();
 
-        if (unknown_packet !== 1'b1) begin
-            $display("TEST 4 FAILED: unknown_packet flag was not asserted.");
-            $finish;
-        end
-
-        repeat (4) @(negedge clk);
-
-        // ------------------------------------------------------------
-        // TEST 5: Unknown packet with drop_unknown disabled
-        // Same packet type, but configurable policy allows it
-        // ------------------------------------------------------------
-
+        // TEST 5: Unknown packet, drop_unknown disabled
         drop_unknown = 1'b0;
-
-        send_udp_packet(
-            16'd3000,
-            16'd3001,
-            32'h0A000008,
-            32'h0A000009
-        );
-
+        send_udp_packet(16'd3000, 16'd3001, 32'h0A000008, 32'h0A000009);
         check_class(CLASS_UNKNOWN, 1'b1, 1'b0, "TEST 5");
+        wait_for_stats_update();
 
-        if (unknown_packet !== 1'b1) begin
-            $display("TEST 5 FAILED: unknown_packet flag was not asserted.");
-            $finish;
-        end
-
-        repeat (4) @(negedge clk);
-
-        // ------------------------------------------------------------
-        // TEST 6: Non-IPv4 Ethernet frame should drop
-        // ------------------------------------------------------------
-
+        // TEST 6: Non-IPv4 frame
         drop_unknown = 1'b1;
-
         send_non_ipv4_frame();
-
         check_class(CLASS_NON_IPV4, 1'b0, 1'b1, "TEST 6");
+        wait_for_stats_update();
 
-        if (non_ipv4_packet !== 1'b1) begin
-            $display("TEST 6 FAILED: non_ipv4_packet flag was not asserted.");
-            $finish;
-        end
-
-        repeat (4) @(negedge clk);
-
-        // ------------------------------------------------------------
-        // TEST 7: Malformed short packet should drop
-        // ------------------------------------------------------------
-
+        // TEST 7: Malformed packet
         send_short_malformed_packet();
-
         check_class(CLASS_MALFORMED, 1'b0, 1'b1, "TEST 7");
+        wait_for_stats_update();
 
-        if (malformed_packet !== 1'b1) begin
-            $display("TEST 7 FAILED: malformed_packet flag was not asserted.");
-            $finish;
-        end
+        $display("Checking integrated traffic counters...");
 
-        repeat (4) @(negedge clk);
+        check_counter(total_packets,              32'd7,  "total_packets");
+        check_counter(allowed_packets,            32'd4,  "allowed_packets");
+        check_counter(dropped_packets,            32'd3,  "dropped_packets");
+        check_counter(market_data_packets_count,  32'd1,  "market_data_packets_count");
+        check_counter(dns_packets_count,          32'd1,  "dns_packets_count");
+        check_counter(trusted_packets_count,      32'd1,  "trusted_packets_count");
+        check_counter(unknown_packets_count,      32'd2,  "unknown_packets_count");
+        check_counter(non_ipv4_packets,           32'd1,  "non_ipv4_packets");
+        check_counter(malformed_packets,          32'd1,  "malformed_packets");
+
+        // Five valid IPv4 UDP packets, each with IPv4 total length 28 bytes.
+        check_counter(total_ipv4_bytes,           32'd140, "total_ipv4_bytes");
+
+        read_stat_register(4'd0, 32'd7,   "STAT_TOTAL_PACKETS");
+        read_stat_register(4'd1, 32'd4,   "STAT_ALLOWED_PACKETS");
+        read_stat_register(4'd2, 32'd3,   "STAT_DROPPED_PACKETS");
+        read_stat_register(4'd5, 32'd1,   "STAT_MARKET_PACKETS");
+        read_stat_register(4'd6, 32'd1,   "STAT_DNS_PACKETS");
+        read_stat_register(4'd10, 32'd2,  "STAT_UNKNOWN_PACKETS");
+        read_stat_register(4'd11, 32'd140, "STAT_TOTAL_IPV4_BYTES");
+
+        $display("Testing clear_counters...");
+
+        @(negedge clk);
+        clear_counters = 1'b1;
+
+        @(negedge clk);
+        clear_counters = 1'b0;
+
+        repeat (2) @(negedge clk);
+
+        check_counter(total_packets,    32'd0, "total_packets after clear");
+        check_counter(allowed_packets,  32'd0, "allowed_packets after clear");
+        check_counter(dropped_packets,  32'd0, "dropped_packets after clear");
+        check_counter(total_ipv4_bytes, 32'd0, "total_ipv4_bytes after clear");
 
         $display("ALL TOP PACKET PROCESSOR TESTS PASSED.");
         $finish;

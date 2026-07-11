@@ -16,7 +16,8 @@ Modern trading firms, defense systems, and high-performance computing platforms 
 - IPv4 header parsing
 - UDP packet parsing
 - Packet classification
-- Traffic statistics counters
+- Allow/drop packet decisions
+- Integrated traffic statistics counters
 - Register-style statistics readout
 - Cycle-level latency measurement
 - Simulated market-data packet decoding
@@ -33,6 +34,7 @@ Modern trading firms, defense systems, and high-performance computing platforms 
 - Day 7: Packet classifier implemented and verified in simulation.
 - Day 8: Top-level packet processor integrated and verified end-to-end.
 - Day 9: Traffic statistics engine implemented and verified in simulation.
+- Day 10: Traffic statistics engine integrated into top-level packet processor.
 
 
 ## System Architecture
