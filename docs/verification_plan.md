@@ -1,20 +1,11 @@
 # Verification Plan
 
-The design will be verified using Python-generated packets and SystemVerilog or cocotb testbenches.
+## Automated Coverage
 
-## Initial Test Cases
+`make test-all` runs self-checking SystemVerilog tests for stream framing, every parser, classification, statistics, latency tracking, market decoding, and the integrated top level. It also runs standard-library Python tests that validate generated packet vectors at each protocol boundary.
 
-- Valid Ethernet frame
-- Valid Ethernet + IPv4 packet
-- Valid Ethernet + IPv4 + UDP packet
-- Invalid EtherType
-- Short Ethernet frame
-- Unsupported protocol
-- Market-data UDP packet
+Covered negative cases include missing packet boundaries, short headers, unsupported EtherType or IP layouts, non-UDP input, counter clearing, and a too-short market payload declaration. The market decoder test checks every decoded field. The latency test checks milestone capture and completion behavior.
 
-## Verification Goals
+## Remaining Verification Work
 
-- Confirm extracted fields match expected packet fields
-- Confirm malformed packets are detected
-- Confirm packet classification is correct
-- Measure cycle-level latency through the pipeline
+The suite is directed rather than constrained-random. Future work includes assertions, functional coverage, randomized gaps and malformed frames, synthesis lint, formal parser properties, and post-place-and-route timing validation.
