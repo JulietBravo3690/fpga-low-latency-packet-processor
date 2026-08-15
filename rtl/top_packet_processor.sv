@@ -67,7 +67,27 @@ module top_packet_processor (
     output logic [31:0] trusted_packets_count,
     output logic [31:0] unknown_packets_count,
     output logic [31:0] total_ipv4_bytes,
-    output logic [15:0] last_packet_length
+    output logic [15:0] last_packet_length,
+
+    output logic        market_message_valid,
+    output logic        market_decoder_error,
+    output logic [7:0]  market_message_type,
+    output logic [31:0] market_symbol,
+    output logic [31:0] market_price,
+    output logic [31:0] market_quantity,
+    output logic [31:0] market_sequence_number,
+
+    output logic [15:0] ethernet_latency,
+    output logic [15:0] ipv4_latency,
+    output logic [15:0] udp_latency,
+    output logic [15:0] classification_latency,
+    output logic [15:0] statistics_latency,
+    output logic        ethernet_latency_valid,
+    output logic        ipv4_latency_valid,
+    output logic        udp_latency_valid,
+    output logic        classification_latency_valid,
+    output logic        statistics_latency_valid,
+    output logic        latency_counter_overflow
 );
 
     localparam [2:0] CLASS_MALFORMED   = 3'd0;
@@ -152,6 +172,7 @@ module top_packet_processor (
     logic classifier_parser_error;
 
     logic stats_packet_length_valid;
+    logic latency_measurement_active;
 
     assign metadata_ready   = classifier_metadata_valid;
     assign parser_error_any = eth_parser_error | ipv4_parser_error | udp_parser_error;
@@ -399,6 +420,49 @@ module top_packet_processor (
 
         .total_ipv4_bytes(total_ipv4_bytes),
         .last_packet_length(last_packet_length)
+    );
+
+    // Decode the documented fixed-width payload only after the UDP parser has
+    // identified a market-data port. Other UDP payloads pass by untouched.
+    market_data_decoder u_market_data_decoder (
+        .clk(clk),
+        .rst_n(rst_n),
+        .data_in(data_in),
+        .valid_in(valid_in),
+        .eop_in(eop_in),
+        .market_header_valid(udp_header_valid),
+        .market_packet(udp_market_data_detected),
+        .udp_length(udp_length_w),
+        .message_valid(market_message_valid),
+        .decoder_error(market_decoder_error),
+        .message_type(market_message_type),
+        .symbol(market_symbol),
+        .price(market_price),
+        .quantity(market_quantity),
+        .sequence_number(market_sequence_number)
+    );
+
+    latency_tracker u_latency_tracker (
+        .clk(clk),
+        .rst_n(rst_n),
+        .sop_event(valid_in && sop_in),
+        .ethernet_event(eth_header_valid),
+        .ipv4_event(ipv4_header_valid),
+        .udp_event(udp_header_valid),
+        .classification_event(class_valid),
+        .statistics_event(class_valid),
+        .measurement_active(latency_measurement_active),
+        .ethernet_latency(ethernet_latency),
+        .ipv4_latency(ipv4_latency),
+        .udp_latency(udp_latency),
+        .classification_latency(classification_latency),
+        .statistics_latency(statistics_latency),
+        .ethernet_latency_valid(ethernet_latency_valid),
+        .ipv4_latency_valid(ipv4_latency_valid),
+        .udp_latency_valid(udp_latency_valid),
+        .classification_latency_valid(classification_latency_valid),
+        .statistics_latency_valid(statistics_latency_valid),
+        .counter_overflow(latency_counter_overflow)
     );
 
 endmodule
