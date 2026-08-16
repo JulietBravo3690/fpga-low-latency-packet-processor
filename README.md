@@ -17,6 +17,7 @@ No device-specific timing or throughput result is claimed: this repository conta
   top level
 - Self-checking SystemVerilog tests, Python packet-vector tests, and GitHub
   Actions CI that runs the complete verification suite
+- Self-checking SystemVerilog tests and Python packet-vector tests
 
 ## Architecture
 

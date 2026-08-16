@@ -27,3 +27,4 @@ The decoder requires an exact UDP length of 25 bytes (8-byte UDP header plus
 this payload). Shorter and longer declarations assert `decoder_error`; no
 extended message schema is currently defined. It does not claim compatibility
 with a real exchange protocol.
+The decoder requires a UDP length of at least 25 bytes (8-byte UDP header plus this payload). It does not claim compatibility with a real exchange protocol.
