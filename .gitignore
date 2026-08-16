@@ -23,3 +23,8 @@ build/
 
 # Editor files
 .vscode/
+
+# Portfolio source archives and private resume material
+__MACOSX/
+*.zip
+Resumes/

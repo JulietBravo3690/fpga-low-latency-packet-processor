@@ -1,99 +1,21 @@
 # Architecture
 
-The FPGA packet processor is organized as a streaming hardware pipeline.
+## Streaming Data Plane
 
-## Data Plane vs Metadata Plane
-
-The design is organized into two conceptual paths.
-
-### Data Plane
-
-The data plane carries the raw packet byte stream through the parser pipeline.
-
-## Top-Level Packet Processor
-
-The top-level module integrates the Ethernet parser, IPv4 parser, UDP parser, metadata completion logic, and packet classifier.
+All three parsers observe the same one-byte-wide input stream (`data_in`, `valid_in`, `sop_in`, and `eop_in`). Parser outputs are registered. The top-level output stream is a direct copy of the input; this design produces metadata and decisions rather than rewriting packets.
 
 ```text
-Raw Packet Stream
-        |
-        v
-Ethernet Parser
-        |
-        v
-IPv4 Parser
-        |
-        v
-UDP Parser
-        |
-        v
-Metadata Completion Unit
-        |
-        v
-Packet Classifier
-        |
-        v
-Class + Allow/Drop Decision
+Input stream --+--> Ethernet parser --+
+               +--> IPv4 parser ------+--> metadata completion --> classifier --> statistics
+               +--> UDP parser -------+
+               +--> latency tracker
+               +--> market decoder (enabled after a market UDP header)
+```
 
-```text
-data_in
-valid_in
-sop_in
-eop_in
-## High-Level Pipeline
+## Metadata Plane
 
-```text
-Input Byte Stream
-      |
-      v
-Ethernet Parser
-      |
-      v
-IPv4 Parser
-      |
-      v
-UDP Parser
-      |
-      v
-Classifier
-      |
-      v
-Statistics / Market Data Decoder
+`top_packet_processor` captures completed Ethernet, IPv4, and UDP fields. A malformed event, a non-IPv4 decision, or a complete UDP header triggers classification. The classifier emits a one-cycle class event consumed by the traffic statistics engine.
 
-## Traffic Statistics Engine
+The decoder is technically separate from classification: the UDP parser's market-port detection enables it on the first payload byte. It implements only the payload documented in [packet format](packet_format.md).
 
-After classification, the traffic statistics engine counts packet events.
-
-```text
-Packet Classifier
-        |
-        v
-Traffic Statistics Engine
-        |
-        v
-Counters / Register Read Interface
-
-## Integrated Classification and Statistics Flow
-
-The top-level packet processor now connects the classifier output directly into the traffic statistics engine.
-
-```text
-Raw Packet Stream
-        |
-        v
-Ethernet Parser
-        |
-        v
-IPv4 Parser
-        |
-        v
-UDP Parser
-        |
-        v
-Metadata Completion Unit
-        |
-        v
-Packet Classifier
-        |
-        v
-Traffic Statistics Engine
+The latency tracker timestamps parser and downstream event pulses relative to an accepted start-of-packet. Values are cycle counts in the actual simulation or implementation; they are observability outputs, not benchmark claims.
