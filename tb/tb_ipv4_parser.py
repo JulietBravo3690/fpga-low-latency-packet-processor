@@ -9,7 +9,7 @@ class IPv4StimulusTest(unittest.TestCase):
     def test_ipv4_header(self):
         header = build_market_packet()[14:34]
         self.assertEqual(header[0], 0x45)
-        self.assertEqual(int.from_bytes(header[2:4]), 45)
+        self.assertEqual(int.from_bytes(header[2:4], byteorder="big"), 45)
         self.assertEqual(header[9], 17)
         self.assertEqual(ipv4_checksum(header), 0)
         self.assertEqual(header[12:16], bytes([192, 168, 1, 10]))
