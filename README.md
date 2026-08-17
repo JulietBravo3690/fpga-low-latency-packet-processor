@@ -1,84 +1,63 @@
-# Low-Latency FPGA Network Packet Processor
+# Low-Latency FPGA Packet Processor
 
-## Overview
+A synthesizable SystemVerilog portfolio project that accepts an 8-bit packet stream and extracts Ethernet II, fixed-header IPv4, and UDP metadata. The integrated design classifies packets, updates telemetry counters, decodes a small demonstrator market-data payload, and reports cycle counts for parser milestones.
 
-This project implements a low-latency FPGA packet processing pipeline for Ethernet, IPv4, and UDP network traffic. The system is designed to parse packet headers, classify traffic, track real-time statistics, and decode simulated market-data packets for financial networking applications.
+No device-specific timing or throughput result is claimed: this repository contains simulation-oriented functional verification, not a published synthesis or timing-closure report.
 
-The goal of this project is to demonstrate FPGA-based networking, packet parsing, hardware pipelines, low-latency design, and verification using SystemVerilog and Python-based testing.
+## Implemented Functionality
 
-## Project Motivation
+- Ethernet II, IPv4 (version 4, IHL 5), and UDP fixed-offset parsing
+- Classification of malformed, non-IPv4, market-data-port, DNS, web, control, trusted, and unknown traffic
+- Configurable allow/drop handling for unknown packets
+- Per-class counters, IPv4 byte totals, and a register-style statistics read interface
+- Fixed 17-byte market message decoding (type, four-character symbol, price, quantity, and sequence)
+- Cycle counters from accepted start-of-packet to Ethernet, IPv4, UDP, classification, and statistics events
+- End-to-end verification that a Python-generated market frame is parsed,
+  classified, decoded, counted as 45 IPv4 bytes, and latency-instrumented at the
+  top level
+- Self-checking SystemVerilog tests, Python packet-vector tests, and GitHub
+  Actions CI that runs the complete verification suite
 
-Modern trading firms, defense systems, and high-performance computing platforms often rely on low-latency networking hardware to process data quickly and deterministically. This project explores how an FPGA can be used to inspect and classify packets directly in hardware.
-
-## Planned Features
-
-- Ethernet frame parsing
-- IPv4 header parsing
-- UDP packet parsing
-- Packet classification
-- Allow/drop packet decisions
-- Integrated traffic statistics counters
-- Register-style statistics readout
-- Cycle-level latency measurement
-- Simulated market-data packet decoding
-- Python-generated packet testing
-
-## Current Status
-
-- Day 1: Repository initialized and project structure created.
-- Day 2: Packet format documented and UDP packet generator created.
-- Day 3: Packet stream input module implemented and simulated.
-- Day 4: Ethernet parser implemented and verified in simulation.
-- Day 5: IPv4 parser implemented and verified in simulation.
-- Day 6: UDP parser implemented and verified in simulation.
-- Day 7: Packet classifier implemented and verified in simulation.
-- Day 8: Top-level packet processor integrated and verified end-to-end.
-- Day 9: Traffic statistics engine implemented and verified in simulation.
-- Day 10: Traffic statistics engine integrated into top-level packet processor.
-
-
-## System Architecture
+## Architecture
 
 ```text
-Packet Byte Stream
-      |
-      v
-Ethernet Parser
-      |
-      v
-IPv4 Parser
-      |
-      v
-UDP Parser
-      |
-      v
-Packet Classifier
-      |
-      v
-Traffic Statistics Engine
-      |
-      v
-Market Data Decoder
+8-bit packet stream
+       +--> Ethernet parser --> IPv4 parser --> UDP parser
+       |                              |
+       |                              +--> metadata classifier --> statistics
+       |                                             |
+       +--> latency tracker                         allow/drop
+       |
+       +--> market-data payload decoder (market UDP packets only)
+```
 
-## Running Simulations
+The parser modules observe the same input stream; their registered metadata is assembled by `top_packet_processor`. See [the architecture notes](docs/architecture.md), [packet format](docs/packet_format.md), and [verification plan](docs/verification_plan.md).
 
-Run an individual module test:
+## Running Verification
 
-```bash
-make test-udp
-
-Run the top-level packet processor test:
-
-```bash
-make test-top
-
-```markdown
-Run all tests:
+The RTL suite requires Icarus Verilog with SystemVerilog 2012 support and Python 3:
 
 ```bash
 make test-all
+```
 
-Run the traffic statistics engine test:
+Individual targets include `test-stream`, `test-eth`, `test-ipv4`, `test-udp`, `test-classifier`, `test-stats`, `test-latency`, `test-market`, `test-top`, and `test-python`.
+
+Generate a readable vector or binary frame:
 
 ```bash
-make test-stats
+python3 scripts/generate_market_packet.py
+python3 scripts/generate_market_packet.py --symbol MSFT --price 41750 --output /tmp/market.bin
+python3 scripts/generate_market_packet.py --hex-output sim/market_packet.hex
+python3 scripts/generate_market_packet.py --sv-array
+```
+
+## Scope and Roadmap
+
+The following are **not implemented** and remain roadmap work:
+
+- Ethernet FCS validation, VLAN tags, IPv4 options, fragmentation/reassembly, TCP parsing, and UDP checksum validation
+- Backpressure or a ready/valid flow-control interface
+- Multiple market-message schemas or exchange protocol compatibility
+- Hardware synthesis, place-and-route, board integration, measured clock frequency, or measured wire-to-decision latency
+- Software-accessible bus integration for statistics

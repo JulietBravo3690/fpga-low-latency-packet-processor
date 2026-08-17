@@ -151,3 +151,11 @@ Integrate the traffic statistics engine into the top-level packet processor so e
 ## Next Step
 
 Build a latency tracker to measure cycle-level delay from start-of-packet to Ethernet parsing, IPv4 parsing, UDP parsing, classification, and statistics update.
+---
+
+## Portfolio Readiness Update
+
+- Implemented and integrated latency instrumentation and the fixed-format market-data decoder.
+- Added a deterministic market packet generator and Python reference-vector tests.
+- Added self-checking decoder and latency SystemVerilog tests.
+- Corrected documentation to separate implemented scope from roadmap items and removed unsupported performance implications.
