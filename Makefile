@@ -32,6 +32,7 @@ test-classifier:
 
 test-top:
 	mkdir -p $(SIM_DIR)
+	python3 scripts/generate_market_packet.py --symbol AAPL --price 18525 --quantity 100 --sequence 42 --hex-output $(SIM_DIR)/market_packet.hex
 	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/top_packet_processor_tb.vvp rtl/ethernet_parser.sv rtl/ipv4_parser.sv rtl/udp_parser.sv rtl/packet_classifier.sv rtl/traffic_stats.sv rtl/latency_tracker.sv rtl/market_data_decoder.sv rtl/top_packet_processor.sv tb/tb_top_packet_processor.sv
 	$(VVP) $(SIM_DIR)/top_packet_processor_tb.vvp
 
@@ -58,3 +59,4 @@ test-all: test-stream test-eth test-ipv4 test-udp test-classifier test-stats tes
 clean:
 	rm -f $(SIM_DIR)/*.vvp
 	rm -f $(SIM_DIR)/*.vcd
+	rm -f $(SIM_DIR)/market_packet.hex

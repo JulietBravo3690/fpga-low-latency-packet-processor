@@ -12,6 +12,11 @@ No device-specific timing or throughput result is claimed: this repository conta
 - Per-class counters, IPv4 byte totals, and a register-style statistics read interface
 - Fixed 17-byte market message decoding (type, four-character symbol, price, quantity, and sequence)
 - Cycle counters from accepted start-of-packet to Ethernet, IPv4, UDP, classification, and statistics events
+- End-to-end verification that a Python-generated market frame is parsed,
+  classified, decoded, counted as 45 IPv4 bytes, and latency-instrumented at the
+  top level
+- Self-checking SystemVerilog tests, Python packet-vector tests, and GitHub
+  Actions CI that runs the complete verification suite
 - Self-checking SystemVerilog tests and Python packet-vector tests
 
 ## Architecture
@@ -44,6 +49,8 @@ Generate a readable vector or binary frame:
 ```bash
 python3 scripts/generate_market_packet.py
 python3 scripts/generate_market_packet.py --symbol MSFT --price 41750 --output /tmp/market.bin
+python3 scripts/generate_market_packet.py --hex-output sim/market_packet.hex
+python3 scripts/generate_market_packet.py --sv-array
 ```
 
 ## Scope and Roadmap

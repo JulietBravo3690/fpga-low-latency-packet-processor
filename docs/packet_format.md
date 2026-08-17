@@ -23,4 +23,8 @@ A UDP packet whose source or destination port is in the inclusive range 5000–6
 | 9 | 4 | Quantity (unsigned) |
 | 13 | 4 | Sequence number (unsigned) |
 
+The decoder requires an exact UDP length of 25 bytes (8-byte UDP header plus
+this payload). Shorter and longer declarations assert `decoder_error`; no
+extended message schema is currently defined. It does not claim compatibility
+with a real exchange protocol.
 The decoder requires a UDP length of at least 25 bytes (8-byte UDP header plus this payload). It does not claim compatibility with a real exchange protocol.
