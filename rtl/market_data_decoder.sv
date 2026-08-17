@@ -52,6 +52,9 @@ module market_data_decoder (
                     decoding          <= 1'b0;
                     payload_byte_index <= 5'd0;
                     decoder_error      <= 1'b1;
+                if (udp_length < REQUIRED_UDP_LENGTH) begin
+                    decoding     <= 1'b0;
+                    decoder_error <= 1'b1;
                 end else if (valid_in) begin
                     decoding          <= 1'b1;
                     payload_byte_index <= 5'd1;
@@ -65,6 +68,8 @@ module market_data_decoder (
                         price              <= 32'd0;
                         quantity           <= 32'd0;
                         sequence_number    <= 32'd0;
+                        decoding     <= 1'b0;
+                        decoder_error <= 1'b1;
                     end
                 end else begin
                     decoding          <= 1'b1;
@@ -115,6 +120,13 @@ module market_data_decoder (
                     price             <= 32'd0;
                     quantity          <= 32'd0;
                     sequence_number   <= 32'd0;
+                    end
+                    default: decoder_error <= 1'b1;
+                endcase
+
+                if (eop_in && (payload_byte_index != 5'd16)) begin
+                    decoder_error <= 1'b1;
+                    decoding     <= 1'b0;
                 end else if (payload_byte_index != 5'd16) begin
                     payload_byte_index <= payload_byte_index + 5'd1;
                 end

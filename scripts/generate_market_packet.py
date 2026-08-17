@@ -98,12 +98,17 @@ def main() -> None:
                               help="write one hexadecimal byte per line for $readmemh")
     output_group.add_argument("--sv-array", action="store_true",
                               help="print a SystemVerilog byte-array initializer")
+    parser.add_argument("--output", type=Path, help="optional binary output file")
     args = parser.parse_args()
     packet = build_market_packet(symbol=args.symbol, price=args.price,
                                  quantity=args.quantity,
                                  sequence_number=args.sequence)
     emit_packet(packet, binary_output=args.output, hex_output=args.hex_output,
                 sv_array=args.sv_array)
+    if args.output:
+        args.output.write_bytes(packet)
+    print(f"Generated {len(packet)}-byte Ethernet/IPv4/UDP market-data frame")
+    print(packet.hex(" "))
 
 
 if __name__ == "__main__":
