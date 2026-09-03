@@ -11,6 +11,7 @@ CORE_RTL = rtl/ethernet_parser.sv rtl/ipv4_parser.sv rtl/udp_parser.sv rtl/tcp_p
 DEMO_RTL = rtl/packet_rom_source.sv $(CORE_RTL) rtl/hardware_status.sv \
 	rtl/hardware_demo_top.sv
 MARKET_HEX = $(SIM_DIR)/market_packet.hex
+.PHONY: test-stream test-eth test-ipv4 test-udp test-classifier test-top test-stats test-latency test-market test-python test-all clean
 
 .PHONY: help test-stream test-eth test-ipv4 test-udp test-tcp test-gate \
 	test-flow test-classifier test-top \
@@ -66,6 +67,10 @@ test-classifier: | $(SIM_DIR)
 
 test-top: $(MARKET_HEX)
 	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/top_packet_processor_tb.vvp $(CORE_RTL) tb/tb_top_packet_processor.sv
+test-top:
+	mkdir -p $(SIM_DIR)
+	python3 scripts/generate_market_packet.py --symbol AAPL --price 18525 --quantity 100 --sequence 42 --hex-output $(SIM_DIR)/market_packet.hex
+	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/top_packet_processor_tb.vvp rtl/ethernet_parser.sv rtl/ipv4_parser.sv rtl/udp_parser.sv rtl/packet_classifier.sv rtl/traffic_stats.sv rtl/latency_tracker.sv rtl/market_data_decoder.sv rtl/top_packet_processor.sv tb/tb_top_packet_processor.sv
 	$(VVP) $(SIM_DIR)/top_packet_processor_tb.vvp
 
 test-stats: | $(SIM_DIR)
@@ -105,6 +110,20 @@ synth-check:
 	mkdir -p build
 	$(YOSYS) -q -l build/yosys.log -p 'read_verilog -sv rtl/*.sv; synth -top hardware_demo_top; check'
 	@echo "Generic Yosys synthesis check PASSED (see build/yosys.log)."
+test-latency:
+	mkdir -p $(SIM_DIR)
+	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/latency_tracker_tb.vvp rtl/latency_tracker.sv tb/tb_latency_tracker.sv
+	$(VVP) $(SIM_DIR)/latency_tracker_tb.vvp
+
+test-market:
+	mkdir -p $(SIM_DIR)
+	$(IVERILOG) $(SV_FLAGS) -o $(SIM_DIR)/market_data_decoder_tb.vvp rtl/market_data_decoder.sv tb/tb_market_data_decoder.sv
+	$(VVP) $(SIM_DIR)/market_data_decoder_tb.vvp
+
+test-python:
+	python3 -m unittest discover -s tb -p 'tb_*.py' -v
+
+test-all: test-stream test-eth test-ipv4 test-udp test-classifier test-stats test-latency test-market test-top test-python
 
 clean:
 	rm -f $(SIM_DIR)/*.vvp

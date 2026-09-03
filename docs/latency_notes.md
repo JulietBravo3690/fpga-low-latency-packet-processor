@@ -29,3 +29,12 @@ The measurements stop at the classification/statistics milestone and exclude
 store-and-forward egress drain time. These are cycle-level RTL observations.
 No device clock, nanosecond latency, maximum frequency, throughput, timing
 closure, or hardware measurement is claimed.
+`latency_tracker` starts at zero when `valid_in && sop_in` is sampled. On each later active clock it increments a saturating 16-bit counter and captures the count when Ethernet, IPv4, UDP, classification, and statistics event pulses occur. Each capture has a corresponding one-cycle valid pulse.
+
+The statistics capture uses the classifier event that the statistics engine samples; it identifies the statistics update edge. The tracker completes on that event. A new start-of-packet restarts the measurement, so the current architecture assumes packets are not interleaved.
+
+These counters enable cycle-accurate observation in a chosen simulation or synthesized build. The repository does not state nanosecond latency, maximum frequency, throughput, or timing closure because no device-specific implementation report is included.
+
+The integrated test verifies all five valid pulses for a generated market-data
+frame, checks that overflow remains clear, and checks milestone ordering. It
+deliberately avoids treating the simulation cycle counts as hardware results.

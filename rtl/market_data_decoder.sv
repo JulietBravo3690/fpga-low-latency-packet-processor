@@ -26,6 +26,14 @@ module market_data_decoder (
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             decoding          <= 1'b0;
+    localparam logic [15:0] REQUIRED_UDP_LENGTH = 16'd25;
+
+    logic       decoding;
+    logic [4:0] payload_byte_index;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            decoding           <= 1'b0;
             payload_byte_index <= 5'd0;
             message_valid      <= 1'b0;
             decoder_error      <= 1'b0;
@@ -68,6 +76,27 @@ module market_data_decoder (
                     end
                 end else begin
                     decoding          <= 1'b1;
+                message_type       <= 8'd0;
+                symbol             <= 32'd0;
+                price              <= 32'd0;
+                quantity           <= 32'd0;
+                sequence_number    <= 32'd0;
+                payload_byte_index <= 5'd0;
+
+                if (udp_length != REQUIRED_UDP_LENGTH) begin
+                    decoding      <= 1'b0;
+                    decoder_error <= 1'b1;
+                end else if (valid_in) begin
+                    if (eop_in) begin
+                        decoding      <= 1'b0;
+                        decoder_error <= 1'b1;
+                    end else begin
+                        decoding           <= 1'b1;
+                        payload_byte_index <= 5'd1;
+                        message_type       <= data_in;
+                    end
+                end else begin
+                    decoding           <= 1'b1;
                     payload_byte_index <= 5'd0;
                 end
             end else if (decoding && valid_in) begin
@@ -88,6 +117,22 @@ module market_data_decoder (
                     5'd13: sequence_number[31:24] <= data_in;
                     5'd14: sequence_number[23:16] <= data_in;
                     5'd15: sequence_number[15:8]  <= data_in;
+                    5'd0:  message_type            <= data_in;
+                    5'd1:  symbol[31:24]           <= data_in;
+                    5'd2:  symbol[23:16]           <= data_in;
+                    5'd3:  symbol[15:8]            <= data_in;
+                    5'd4:  symbol[7:0]             <= data_in;
+                    5'd5:  price[31:24]            <= data_in;
+                    5'd6:  price[23:16]            <= data_in;
+                    5'd7:  price[15:8]             <= data_in;
+                    5'd8:  price[7:0]              <= data_in;
+                    5'd9:  quantity[31:24]         <= data_in;
+                    5'd10: quantity[23:16]         <= data_in;
+                    5'd11: quantity[15:8]          <= data_in;
+                    5'd12: quantity[7:0]           <= data_in;
+                    5'd13: sequence_number[31:24]  <= data_in;
+                    5'd14: sequence_number[23:16]  <= data_in;
+                    5'd15: sequence_number[15:8]   <= data_in;
                     5'd16: begin
                         sequence_number[7:0] <= data_in;
                         message_valid         <= 1'b1;
@@ -104,6 +149,10 @@ module market_data_decoder (
                         quantity           <= 32'd0;
                         sequence_number    <= 32'd0;
                     end
+                    default: begin
+                        decoding      <= 1'b0;
+                        decoder_error <= 1'b1;
+                    end
                 endcase
 
                 if (eop_in && (payload_byte_index != 5'd16)) begin
@@ -115,6 +164,14 @@ module market_data_decoder (
                     price             <= 32'd0;
                     quantity          <= 32'd0;
                     sequence_number   <= 32'd0;
+                    decoder_error      <= 1'b1;
+                    decoding           <= 1'b0;
+                    payload_byte_index <= 5'd0;
+                    message_type       <= 8'd0;
+                    symbol             <= 32'd0;
+                    price              <= 32'd0;
+                    quantity           <= 32'd0;
+                    sequence_number    <= 32'd0;
                 end else if (payload_byte_index != 5'd16) begin
                     payload_byte_index <= payload_byte_index + 5'd1;
                 end

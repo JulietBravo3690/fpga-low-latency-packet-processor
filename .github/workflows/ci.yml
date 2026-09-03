@@ -26,3 +26,9 @@ jobs:
 
       - name: Generic synthesis check
         run: make synth-check
+          sudo apt-get install --yes iverilog python3
+
+      - name: Run verification suite
+        run: |
+          make clean
+          make test-all

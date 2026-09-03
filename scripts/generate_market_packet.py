@@ -62,6 +62,11 @@ def build_market_packet(*, message_type: int = 1, symbol: str = "AAPL",
     )
     checksum = ipv4_checksum(ipv4_without_checksum)
     ipv4 = ipv4_without_checksum[:10] + struct.pack(">H", checksum) + ipv4_without_checksum[12:]
+    ipv4 = (
+        ipv4_without_checksum[:10]
+        + struct.pack(">H", checksum)
+        + ipv4_without_checksum[12:]
+    )
     udp = struct.pack(">HHHH", src_port, dst_port, udp_length, 0)
     return ethernet + ipv4 + udp + payload
 
@@ -91,6 +96,7 @@ def main() -> None:
                         help="unsigned integer price in application-defined units")
     parser.add_argument("--quantity", type=int, default=100)
     parser.add_argument("--sequence", type=int, default=1)
+
     output_group = parser.add_mutually_exclusive_group()
     output_group.add_argument("--output", type=Path,
                               help="write the raw frame to a binary file")
@@ -104,6 +110,31 @@ def main() -> None:
                                  sequence_number=args.sequence)
     emit_packet(packet, binary_output=args.output, hex_output=args.hex_output,
                 sv_array=args.sv_array)
+
+    args = parser.parse_args()
+    packet = build_market_packet(
+        symbol=args.symbol,
+        price=args.price,
+        quantity=args.quantity,
+        sequence_number=args.sequence,
+    )
+
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_bytes(packet)
+    elif args.hex_output:
+        args.hex_output.parent.mkdir(parents=True, exist_ok=True)
+        args.hex_output.write_text(
+            "".join(f"{byte:02x}\n" for byte in packet),
+            encoding="ascii",
+        )
+    elif args.sv_array:
+        values = ", ".join(f"8'h{byte:02X}" for byte in packet)
+        print("'{" + values + "}")
+        return
+
+    print(f"Generated {len(packet)}-byte Ethernet/IPv4/UDP market-data frame")
+    print(packet.hex(" "))
 
 
 if __name__ == "__main__":

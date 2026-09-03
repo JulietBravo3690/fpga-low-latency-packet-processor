@@ -43,3 +43,4 @@ extracts source and destination ports at offsets 34–37, the data offset at byt
 46, and flags at byte 47. It requires data offset >= 5 and a complete 20-byte
 minimum header through byte 53. The fixed fast path requires data offset 5;
 TCP options and checksum validation are not implemented.
+The decoder requires a UDP length of at least 25 bytes (8-byte UDP header plus this payload). It does not claim compatibility with a real exchange protocol.

@@ -54,6 +54,22 @@ module latency_tracker #(
             classification_latency_valid <= 1'b0;
             statistics_latency_valid     <= 1'b0;
             counter_overflow             <= 1'b0;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            measurement_active         <= 1'b0;
+            cycle_count                <= '0;
+            ethernet_latency           <= '0;
+            ipv4_latency               <= '0;
+            udp_latency                <= '0;
+            classification_latency     <= '0;
+            statistics_latency         <= '0;
+            ethernet_latency_valid     <= 1'b0;
+            ipv4_latency_valid         <= 1'b0;
+            udp_latency_valid          <= 1'b0;
+            classification_latency_valid <= 1'b0;
+            statistics_latency_valid   <= 1'b0;
+            counter_overflow           <= 1'b0;
         end else begin
             ethernet_latency_valid       <= 1'b0;
             ipv4_latency_valid           <= 1'b0;
@@ -109,6 +125,36 @@ module latency_tracker #(
                 end
                 if (statistics_event) begin
                     statistics_latency       <= elapsed_count;
+                measurement_active <= 1'b1;
+                cycle_count        <= '0;
+                counter_overflow   <= 1'b0;
+            end else if (measurement_active) begin
+                if (&cycle_count) begin
+                    counter_overflow <= 1'b1;
+                end else begin
+                    cycle_count <= cycle_count + {{(COUNTER_WIDTH-1){1'b0}}, 1'b1};
+                end
+            end
+
+            if (measurement_active) begin
+                if (ethernet_event) begin
+                    ethernet_latency       <= cycle_count;
+                    ethernet_latency_valid <= 1'b1;
+                end
+                if (ipv4_event) begin
+                    ipv4_latency       <= cycle_count;
+                    ipv4_latency_valid <= 1'b1;
+                end
+                if (udp_event) begin
+                    udp_latency       <= cycle_count;
+                    udp_latency_valid <= 1'b1;
+                end
+                if (classification_event) begin
+                    classification_latency       <= cycle_count;
+                    classification_latency_valid <= 1'b1;
+                end
+                if (statistics_event) begin
+                    statistics_latency       <= cycle_count;
                     statistics_latency_valid <= 1'b1;
                     measurement_active       <= 1'b0;
                 end
