@@ -151,3 +151,34 @@ Integrate the traffic statistics engine into the top-level packet processor so e
 ## Next Step
 
 Build a latency tracker to measure cycle-level delay from start-of-packet to Ethernet parsing, IPv4 parsing, UDP parsing, classification, and statistics update.
+---
+
+## Portfolio Readiness Update
+
+- Implemented and integrated latency instrumentation and the fixed-format market-data decoder.
+- Added a deterministic market packet generator and Python reference-vector tests.
+- Added self-checking decoder and latency SystemVerilog tests.
+- Corrected documentation to separate implemented scope from roadmap items and removed unsupported performance implications.
+
+---
+
+## Hardware-Readiness Update
+
+- Added a synthesizable, reusable reference-packet source and board-agnostic demonstration top.
+- Added sticky hardware status and decoded/latency snapshots for future on-chip observation.
+- Added self-checking packet-source and hardware-demo simulations, including retrigger and reset recovery.
+- Defined the native stream interface and documented the future MAC/PHY boundary.
+- Added Verilator lint and generic Yosys synthesis checks locally and in CI.
+- Hardware deployment, device timing closure, and physical latency measurement remain future board-specific work.
+
+---
+
+## Flow-Controlled Enforcement and TCP Fast Path
+
+- Added a parameterized store-and-forward packet gate with ingress and egress handshakes.
+- Enforced allow/drop decisions so dropped packets emit no egress bytes.
+- Added fixed-header TCP parsing and integrated UDP/TCP port selection.
+- Guarded DNS and control rules by transport protocol and cleared metadata on SOP.
+- Added generic UDP/TCP/non-IPv4/malformed Python frame builders.
+- Added TCP, gate, and eight-packet flow-controlled integration verification.
+- Preserved the market decoder, statistics, latency instrumentation, hardware demo, lint, and synthesis flows.
