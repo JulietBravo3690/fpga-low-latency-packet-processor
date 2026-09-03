@@ -8,6 +8,9 @@ module tb_market_data_decoder;
     logic market_header_valid = 0;
     logic market_packet = 0;
     logic [15:0] udp_length = 0;
+    logic message_valid, decoder_error;
+    logic [7:0] message_type;
+    logic [31:0] symbol, price, quantity, sequence_number;
 
     logic message_valid;
     logic decoder_error;
@@ -32,6 +35,9 @@ module tb_market_data_decoder;
     task idle_cycle;
         begin
             @(negedge clk);
+            valid_in = 0;
+            eop_in = 0;
+            market_header_valid = 0;
             valid_in = 1'b0;
             eop_in = 1'b0;
             market_header_valid = 1'b0;
@@ -42,6 +48,11 @@ module tb_market_data_decoder;
         begin
             @(negedge clk);
             udp_length = declared_length;
+            market_header_valid = 1;
+            market_packet = 1;
+            data_in = payload[0];
+            valid_in = 1;
+            eop_in = 0;
             market_header_valid = 1'b1;
             market_packet = 1'b1;
             data_in = payload[0];
@@ -57,6 +68,9 @@ module tb_market_data_decoder;
                 if (insert_gaps)
                     idle_cycle();
                 @(negedge clk);
+                market_header_valid = 0;
+                data_in = payload[index];
+                valid_in = 1;
                 market_header_valid = 1'b0;
                 data_in = payload[index];
                 valid_in = 1'b1;
@@ -69,6 +83,12 @@ module tb_market_data_decoder;
 
     task check_valid_message(input string test_name);
         begin
+            if (!message_valid || decoder_error || message_type != 1 ||
+                symbol != "AAPL" || price != 18525 || quantity != 100 ||
+                sequence_number != 42)
+                $fatal(1, "%s: decoded fields or status mismatch", test_name);
+            idle_cycle();
+            @(posedge clk); #1;
             if (!message_valid || decoder_error || message_type != 8'h01 ||
                 symbol != "AAPL" || price != 32'd18525 || quantity != 32'd100 ||
                 sequence_number != 32'd42)
@@ -83,6 +103,17 @@ module tb_market_data_decoder;
     endtask
 
     initial begin
+        payload[0] = 8'h01;
+        payload[1] = "A"; payload[2] = "A"; payload[3] = "P"; payload[4] = "L";
+        payload[5] = 8'h00; payload[6] = 8'h00; payload[7] = 8'h48; payload[8] = 8'h5D;
+        payload[9] = 8'h00; payload[10] = 8'h00; payload[11] = 8'h00; payload[12] = 8'h64;
+        payload[13] = 8'h00; payload[14] = 8'h00; payload[15] = 8'h00; payload[16] = 8'h2A;
+        message_valid_count = 0;
+
+        repeat (2) @(negedge clk);
+        rst_n = 1;
+
+        // Back-to-back stream bytes.
         payload[0]  = 8'h01;
         payload[1]  = "A";
         payload[2]  = "A";
@@ -110,10 +141,36 @@ module tb_market_data_decoder;
         drive_payload(16, 1'b0);
         check_valid_message("continuous payload");
 
+        // Idle cycles between every payload byte.
         start_message(16'd25);
         drive_payload(16, 1'b1);
         check_valid_message("gapped payload");
 
+        // A declared length shorter than the fixed schema is rejected.
+        idle_cycle();
+        @(negedge clk);
+        udp_length = 16'd24; market_header_valid = 1; market_packet = 1;
+        valid_in = 0; eop_in = 0;
+        @(posedge clk); #1;
+        if (!decoder_error || message_valid)
+            $fatal(1, "short declared UDP length was accepted");
+        if (message_type != 0 || symbol != 0 || price != 0 ||
+            quantity != 0 || sequence_number != 0)
+            $fatal(1, "short length left stale decoded fields");
+
+        // A longer declaration is also rejected: only the exact schema exists.
+        idle_cycle();
+        @(negedge clk);
+        udp_length = 16'd26; market_header_valid = 1; market_packet = 1;
+        valid_in = 0; eop_in = 0;
+        @(posedge clk); #1;
+        if (!decoder_error || message_valid)
+            $fatal(1, "overlong declared UDP length was accepted");
+        if (message_type != 0 || symbol != 0 || price != 0 ||
+            quantity != 0 || sequence_number != 0)
+            $fatal(1, "overlong length left stale decoded fields");
+
+        // Early EOP clears partially decoded state and never emits valid.
         idle_cycle();
         @(negedge clk);
         udp_length = 16'd24;
@@ -147,6 +204,8 @@ module tb_market_data_decoder;
             quantity != 0 || sequence_number != 0)
             $fatal(1, "early EOP left stale decoded fields");
 
+        if (message_valid_count != 2)
+            $fatal(1, "expected exactly two valid-message pulses, got %0d", message_valid_count);
         idle_cycle();
         @(posedge clk);
         #1;

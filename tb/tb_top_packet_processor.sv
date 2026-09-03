@@ -16,6 +16,7 @@ module tb_top_packet_processor;
 
     logic [7:0] data_in;
     logic       valid_in;
+    logic       in_ready;
     logic       sop_in;
     logic       eop_in;
 
@@ -26,8 +27,10 @@ module tb_top_packet_processor;
 
     logic [7:0] data_out;
     logic       valid_out;
+    logic       out_ready;
     logic       sop_out;
     logic       eop_out;
+    logic       packet_buffer_overflow;
 
     logic [47:0] dest_mac;
     logic [47:0] src_mac;
@@ -44,6 +47,10 @@ module tb_top_packet_processor;
     logic [15:0] udp_dst_port;
     logic [15:0] udp_length;
     logic [15:0] udp_checksum;
+    logic [15:0] tcp_src_port;
+    logic [15:0] tcp_dst_port;
+    logic [3:0]  tcp_data_offset;
+    logic [7:0]  tcp_flags;
 
     logic        metadata_ready;
     logic        parser_error_any;
@@ -108,6 +115,7 @@ module tb_top_packet_processor;
 
         .data_in(data_in),
         .valid_in(valid_in),
+        .in_ready(in_ready),
         .sop_in(sop_in),
         .eop_in(eop_in),
 
@@ -118,8 +126,10 @@ module tb_top_packet_processor;
 
         .data_out(data_out),
         .valid_out(valid_out),
+        .out_ready(out_ready),
         .sop_out(sop_out),
         .eop_out(eop_out),
+        .packet_buffer_overflow(packet_buffer_overflow),
 
         .dest_mac(dest_mac),
         .src_mac(src_mac),
@@ -136,6 +146,10 @@ module tb_top_packet_processor;
         .udp_dst_port(udp_dst_port),
         .udp_length(udp_length),
         .udp_checksum(udp_checksum),
+        .tcp_src_port(tcp_src_port),
+        .tcp_dst_port(tcp_dst_port),
+        .tcp_data_offset(tcp_data_offset),
+        .tcp_flags(tcp_flags),
 
         .metadata_ready(metadata_ready),
         .parser_error_any(parser_error_any),
@@ -227,6 +241,7 @@ module tb_top_packet_processor;
             clear_counters = 1'b0;
             stats_rd_en    = 1'b0;
             stats_addr     = 4'd0;
+            out_ready      = 1'b1;
 
             repeat (3) @(negedge clk);
             rst_n = 1'b1;
@@ -245,6 +260,10 @@ module tb_top_packet_processor;
             valid_in = 1'b1;
             sop_in   = sop_value;
             eop_in   = eop_value;
+
+            while (!in_ready) begin
+                @(negedge clk);
+            end
 
             @(negedge clk);
             data_in  = 8'h00;

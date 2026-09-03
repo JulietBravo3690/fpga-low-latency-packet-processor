@@ -75,8 +75,11 @@ module packet_classifier #(
         );
 
     assign is_dns =
+        is_udp &&
+        (
         (src_port == DNS_PORT) ||
-        (dst_port == DNS_PORT);
+        (dst_port == DNS_PORT)
+        );
 
     assign is_web =
         is_tcp &&
@@ -88,12 +91,15 @@ module packet_classifier #(
         );
 
     assign is_control =
+        (is_udp || is_tcp) &&
+        (
         (src_port == SSH_PORT)     ||
         (dst_port == SSH_PORT)     ||
         (src_port == NTP_PORT)     ||
         (dst_port == NTP_PORT)     ||
         (src_port == CONTROL_PORT) ||
-        (dst_port == CONTROL_PORT);
+        (dst_port == CONTROL_PORT)
+        );
 
     assign is_trusted =
         (src_ip == TRUSTED_SRC_IP) ||
