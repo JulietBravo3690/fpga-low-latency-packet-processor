@@ -27,4 +27,19 @@ The decoder requires an exact UDP length of 25 bytes (8-byte UDP header plus
 this payload). Shorter and longer declarations assert `decoder_error`; no
 extended message schema is currently defined. It does not claim compatibility
 with a real exchange protocol.
-The decoder requires a UDP length of at least 25 bytes (8-byte UDP header plus this payload). It does not claim compatibility with a real exchange protocol.
+
+## Hardware-Demo Reference Frame
+
+`packet_rom_source` and the Makefile's Python-generated reference vector use the
+same 59-byte frame: destination/source MAC `AA:BB:CC:DD:EE:FF` /
+`11:22:33:44:55:66`, IPv4 addresses `192.168.1.10` / `192.168.1.20`, UDP ports
+5000 / 6000, message type 1, symbol `AAPL`, price 18525, quantity 100, and
+sequence number 42. The IPv4 total length is 45 and UDP length is 25.
+
+## TCP Fast Path
+
+For IPv4 protocol 6 with IHL=5, TCP begins at Ethernet offset 34. The parser
+extracts source and destination ports at offsets 34–37, the data offset at byte
+46, and flags at byte 47. It requires data offset >= 5 and a complete 20-byte
+minimum header through byte 53. The fixed fast path requires data offset 5;
+TCP options and checksum validation are not implemented.
