@@ -1,9 +1,13 @@
-module top_packet_processor (
+module top_packet_processor #(
+    parameter PACKET_BUFFER_DEPTH = 2048,
+    parameter PACKET_INDEX_WIDTH  = $clog2(PACKET_BUFFER_DEPTH)
+) (
     input  logic        clk,
     input  logic        rst_n,
 
     input  logic [7:0]  data_in,
     input  logic        valid_in,
+    output logic        in_ready,
     input  logic        sop_in,
     input  logic        eop_in,
 
@@ -15,8 +19,10 @@ module top_packet_processor (
 
     output logic [7:0]  data_out,
     output logic        valid_out,
+    input  logic        out_ready,
     output logic        sop_out,
     output logic        eop_out,
+    output logic        packet_buffer_overflow,
 
     output logic [47:0] dest_mac,
     output logic [47:0] src_mac,
@@ -33,6 +39,11 @@ module top_packet_processor (
     output logic [15:0] udp_dst_port,
     output logic [15:0] udp_length,
     output logic [15:0] udp_checksum,
+
+    output logic [15:0] tcp_src_port,
+    output logic [15:0] tcp_dst_port,
+    output logic [3:0]  tcp_data_offset,
+    output logic [7:0]  tcp_flags,
 
     output logic        metadata_ready,
     output logic        parser_error_any,
@@ -67,7 +78,27 @@ module top_packet_processor (
     output logic [31:0] trusted_packets_count,
     output logic [31:0] unknown_packets_count,
     output logic [31:0] total_ipv4_bytes,
-    output logic [15:0] last_packet_length
+    output logic [15:0] last_packet_length,
+
+    output logic        market_message_valid,
+    output logic        market_decoder_error,
+    output logic [7:0]  market_message_type,
+    output logic [31:0] market_symbol,
+    output logic [31:0] market_price,
+    output logic [31:0] market_quantity,
+    output logic [31:0] market_sequence_number,
+
+    output logic [15:0] ethernet_latency,
+    output logic [15:0] ipv4_latency,
+    output logic [15:0] udp_latency,
+    output logic [15:0] classification_latency,
+    output logic [15:0] statistics_latency,
+    output logic        ethernet_latency_valid,
+    output logic        ipv4_latency_valid,
+    output logic        udp_latency_valid,
+    output logic        classification_latency_valid,
+    output logic        statistics_latency_valid,
+    output logic        latency_counter_overflow
 );
 
     localparam [2:0] CLASS_MALFORMED   = 3'd0;
@@ -152,14 +183,25 @@ module top_packet_processor (
     logic classifier_parser_error;
 
     logic stats_packet_length_valid;
+    logic latency_measurement_active;
+    logic accepted_valid;
+
+    logic [15:0] tcp_src_port_w;
+    logic [15:0] tcp_dst_port_w;
+    logic [3:0]  tcp_data_offset_w;
+    logic [7:0]  tcp_flags_w;
+    logic        tcp_header_valid;
+    logic        tcp_not_tcp;
+    logic        tcp_parser_error;
+    logic [7:0]  tcp_packet_byte_index;
+
+    logic [15:0] classifier_src_port;
+    logic [15:0] classifier_dst_port;
 
     assign metadata_ready   = classifier_metadata_valid;
-    assign parser_error_any = eth_parser_error | ipv4_parser_error | udp_parser_error;
-
-    assign data_out  = data_in;
-    assign valid_out = valid_in;
-    assign sop_out   = sop_in;
-    assign eop_out   = eop_in;
+    assign parser_error_any = eth_parser_error | ipv4_parser_error |
+                              udp_parser_error | tcp_parser_error;
+    assign accepted_valid = valid_in && in_ready;
 
     assign stats_packet_length_valid =
         class_valid &&
@@ -175,7 +217,7 @@ module top_packet_processor (
         .rst_n(rst_n),
 
         .data_in(data_in),
-        .valid_in(valid_in),
+        .valid_in(accepted_valid),
         .sop_in(sop_in),
         .eop_in(eop_in),
 
@@ -201,7 +243,7 @@ module top_packet_processor (
         .rst_n(rst_n),
 
         .data_in(data_in),
-        .valid_in(valid_in),
+        .valid_in(accepted_valid),
         .sop_in(sop_in),
         .eop_in(eop_in),
 
@@ -235,7 +277,7 @@ module top_packet_processor (
         .rst_n(rst_n),
 
         .data_in(data_in),
-        .valid_in(valid_in),
+        .valid_in(accepted_valid),
         .sop_in(sop_in),
         .eop_in(eop_in),
 
@@ -262,6 +304,23 @@ module top_packet_processor (
         .packet_byte_index(udp_packet_byte_index)
     );
 
+    tcp_parser u_tcp_parser (
+        .clk(clk),
+        .rst_n(rst_n),
+        .data_in(data_in),
+        .valid_in(accepted_valid),
+        .sop_in(sop_in),
+        .eop_in(eop_in),
+        .tcp_src_port(tcp_src_port_w),
+        .tcp_dst_port(tcp_dst_port_w),
+        .tcp_data_offset(tcp_data_offset_w),
+        .tcp_flags(tcp_flags_w),
+        .tcp_header_valid(tcp_header_valid),
+        .not_tcp(tcp_not_tcp),
+        .parser_error(tcp_parser_error),
+        .packet_byte_index(tcp_packet_byte_index)
+    );
+
     // ------------------------------------------------------------
     // Metadata completion unit
     // ------------------------------------------------------------
@@ -284,11 +343,42 @@ module top_packet_processor (
             udp_length                <= 16'd0;
             udp_checksum              <= 16'd0;
 
+            tcp_src_port              <= 16'd0;
+            tcp_dst_port              <= 16'd0;
+            tcp_data_offset           <= 4'd0;
+            tcp_flags                 <= 8'd0;
+
+            classifier_src_port       <= 16'd0;
+            classifier_dst_port       <= 16'd0;
+
             classifier_metadata_valid <= 1'b0;
             classifier_parser_error   <= 1'b0;
+
         end else begin
             classifier_metadata_valid <= 1'b0;
             classifier_parser_error   <= 1'b0;
+
+            if (accepted_valid && sop_in) begin
+                dest_mac            <= 48'd0;
+                src_mac             <= 48'd0;
+                ethertype           <= 16'd0;
+                ip_version          <= 4'd0;
+                ip_ihl              <= 4'd0;
+                ip_total_length     <= 16'd0;
+                ip_protocol         <= 8'd0;
+                src_ip              <= 32'd0;
+                dst_ip              <= 32'd0;
+                udp_src_port        <= 16'd0;
+                udp_dst_port        <= 16'd0;
+                udp_length          <= 16'd0;
+                udp_checksum        <= 16'd0;
+                tcp_src_port        <= 16'd0;
+                tcp_dst_port        <= 16'd0;
+                tcp_data_offset     <= 4'd0;
+                tcp_flags           <= 8'd0;
+                classifier_src_port <= 16'd0;
+                classifier_dst_port <= 16'd0;
+            end
 
             if (eth_header_valid) begin
                 dest_mac  <= eth_dest_mac;
@@ -310,15 +400,35 @@ module top_packet_processor (
                 udp_dst_port <= udp_dst_port_w;
                 udp_length   <= udp_length_w;
                 udp_checksum <= udp_checksum_w;
+                classifier_src_port <= udp_src_port_w;
+                classifier_dst_port <= udp_dst_port_w;
             end
 
-            if (eth_parser_error || ipv4_parser_error || udp_parser_error) begin
+            if (tcp_header_valid) begin
+                tcp_src_port        <= tcp_src_port_w;
+                tcp_dst_port        <= tcp_dst_port_w;
+                tcp_data_offset     <= tcp_data_offset_w;
+                tcp_flags           <= tcp_flags_w;
+                classifier_src_port <= tcp_src_port_w;
+                classifier_dst_port <= tcp_dst_port_w;
+            end
+
+            if (eth_parser_error || ipv4_parser_error || udp_parser_error ||
+                tcp_parser_error) begin
                 classifier_metadata_valid <= 1'b1;
                 classifier_parser_error   <= 1'b1;
-            end else if (udp_not_ipv4) begin
+            end else if (eth_unsupported_ethertype) begin
                 classifier_metadata_valid <= 1'b1;
                 classifier_parser_error   <= 1'b0;
             end else if (udp_header_valid) begin
+                classifier_metadata_valid <= 1'b1;
+                classifier_parser_error   <= 1'b0;
+            end else if (tcp_header_valid) begin
+                classifier_metadata_valid <= 1'b1;
+                classifier_parser_error   <= 1'b0;
+            end else if (ipv4_header_valid &&
+                         (ipv4_ip_protocol != 8'd17) &&
+                         (ipv4_ip_protocol != 8'd6)) begin
                 classifier_metadata_valid <= 1'b1;
                 classifier_parser_error   <= 1'b0;
             end
@@ -340,8 +450,8 @@ module top_packet_processor (
         .ip_protocol(ip_protocol),
         .src_ip(src_ip),
         .dst_ip(dst_ip),
-        .src_port(udp_src_port),
-        .dst_port(udp_dst_port),
+        .src_port(classifier_src_port),
+        .dst_port(classifier_dst_port),
 
         .drop_unknown(drop_unknown),
 
@@ -399,6 +509,70 @@ module top_packet_processor (
 
         .total_ipv4_bytes(total_ipv4_bytes),
         .last_packet_length(last_packet_length)
+    );
+
+    packet_gate #(
+        .BUFFER_DEPTH(PACKET_BUFFER_DEPTH),
+        .INDEX_WIDTH(PACKET_INDEX_WIDTH)
+    ) u_packet_gate (
+        .clk(clk),
+        .rst_n(rst_n),
+        .data_in(data_in),
+        .valid_in(valid_in),
+        .in_ready(in_ready),
+        .sop_in(sop_in),
+        .eop_in(eop_in),
+        .decision_valid(class_valid),
+        .allow_packet(allow_packet),
+        .data_out(data_out),
+        .valid_out(valid_out),
+        .out_ready(out_ready),
+        .sop_out(sop_out),
+        .eop_out(eop_out),
+        .overflow_error(packet_buffer_overflow)
+    );
+
+    // Decode the documented fixed-width payload only after the UDP parser has
+    // identified a market-data port. Other UDP payloads pass by untouched.
+    market_data_decoder u_market_data_decoder (
+        .clk(clk),
+        .rst_n(rst_n),
+        .data_in(data_in),
+        .valid_in(accepted_valid),
+        .eop_in(eop_in),
+        .market_header_valid(udp_header_valid),
+        .market_packet(udp_market_data_detected),
+        .udp_length(udp_length_w),
+        .message_valid(market_message_valid),
+        .decoder_error(market_decoder_error),
+        .message_type(market_message_type),
+        .symbol(market_symbol),
+        .price(market_price),
+        .quantity(market_quantity),
+        .sequence_number(market_sequence_number)
+    );
+
+    latency_tracker u_latency_tracker (
+        .clk(clk),
+        .rst_n(rst_n),
+        .sop_event(accepted_valid && sop_in),
+        .ethernet_event(eth_header_valid),
+        .ipv4_event(ipv4_header_valid),
+        .udp_event(udp_header_valid),
+        .classification_event(class_valid),
+        .statistics_event(class_valid),
+        .measurement_active(latency_measurement_active),
+        .ethernet_latency(ethernet_latency),
+        .ipv4_latency(ipv4_latency),
+        .udp_latency(udp_latency),
+        .classification_latency(classification_latency),
+        .statistics_latency(statistics_latency),
+        .ethernet_latency_valid(ethernet_latency_valid),
+        .ipv4_latency_valid(ipv4_latency_valid),
+        .udp_latency_valid(udp_latency_valid),
+        .classification_latency_valid(classification_latency_valid),
+        .statistics_latency_valid(statistics_latency_valid),
+        .counter_overflow(latency_counter_overflow)
     );
 
 endmodule

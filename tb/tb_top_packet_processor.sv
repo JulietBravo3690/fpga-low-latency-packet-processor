@@ -16,6 +16,7 @@ module tb_top_packet_processor;
 
     logic [7:0] data_in;
     logic       valid_in;
+    logic       in_ready;
     logic       sop_in;
     logic       eop_in;
 
@@ -26,8 +27,10 @@ module tb_top_packet_processor;
 
     logic [7:0] data_out;
     logic       valid_out;
+    logic       out_ready;
     logic       sop_out;
     logic       eop_out;
+    logic       packet_buffer_overflow;
 
     logic [47:0] dest_mac;
     logic [47:0] src_mac;
@@ -44,6 +47,10 @@ module tb_top_packet_processor;
     logic [15:0] udp_dst_port;
     logic [15:0] udp_length;
     logic [15:0] udp_checksum;
+    logic [15:0] tcp_src_port;
+    logic [15:0] tcp_dst_port;
+    logic [3:0]  tcp_data_offset;
+    logic [7:0]  tcp_flags;
 
     logic        metadata_ready;
     logic        parser_error_any;
@@ -80,12 +87,35 @@ module tb_top_packet_processor;
     logic [31:0] total_ipv4_bytes;
     logic [15:0] last_packet_length;
 
+    logic        market_message_valid;
+    logic        market_decoder_error;
+    logic [7:0]  market_message_type;
+    logic [31:0] market_symbol;
+    logic [31:0] market_price;
+    logic [31:0] market_quantity;
+    logic [31:0] market_sequence_number;
+
+    logic [15:0] ethernet_latency;
+    logic [15:0] ipv4_latency;
+    logic [15:0] udp_latency;
+    logic [15:0] classification_latency;
+    logic [15:0] statistics_latency;
+    logic ethernet_latency_valid, ipv4_latency_valid, udp_latency_valid;
+    logic classification_latency_valid, statistics_latency_valid;
+    logic latency_counter_overflow;
+
+    logic [7:0] market_frame [0:58];
+    logic market_message_seen, market_class_seen;
+    logic ethernet_latency_seen, ipv4_latency_seen, udp_latency_seen;
+    logic classification_latency_seen, statistics_latency_seen;
+
     top_packet_processor dut (
         .clk(clk),
         .rst_n(rst_n),
 
         .data_in(data_in),
         .valid_in(valid_in),
+        .in_ready(in_ready),
         .sop_in(sop_in),
         .eop_in(eop_in),
 
@@ -96,8 +126,10 @@ module tb_top_packet_processor;
 
         .data_out(data_out),
         .valid_out(valid_out),
+        .out_ready(out_ready),
         .sop_out(sop_out),
         .eop_out(eop_out),
+        .packet_buffer_overflow(packet_buffer_overflow),
 
         .dest_mac(dest_mac),
         .src_mac(src_mac),
@@ -114,6 +146,10 @@ module tb_top_packet_processor;
         .udp_dst_port(udp_dst_port),
         .udp_length(udp_length),
         .udp_checksum(udp_checksum),
+        .tcp_src_port(tcp_src_port),
+        .tcp_dst_port(tcp_dst_port),
+        .tcp_data_offset(tcp_data_offset),
+        .tcp_flags(tcp_flags),
 
         .metadata_ready(metadata_ready),
         .parser_error_any(parser_error_any),
@@ -148,10 +184,51 @@ module tb_top_packet_processor;
         .trusted_packets_count(trusted_packets_count),
         .unknown_packets_count(unknown_packets_count),
         .total_ipv4_bytes(total_ipv4_bytes),
-        .last_packet_length(last_packet_length)
+        .last_packet_length(last_packet_length),
+
+        .market_message_valid(market_message_valid),
+        .market_decoder_error(market_decoder_error),
+        .market_message_type(market_message_type),
+        .market_symbol(market_symbol),
+        .market_price(market_price),
+        .market_quantity(market_quantity),
+        .market_sequence_number(market_sequence_number),
+
+        .ethernet_latency(ethernet_latency),
+        .ipv4_latency(ipv4_latency),
+        .udp_latency(udp_latency),
+        .classification_latency(classification_latency),
+        .statistics_latency(statistics_latency),
+        .ethernet_latency_valid(ethernet_latency_valid),
+        .ipv4_latency_valid(ipv4_latency_valid),
+        .udp_latency_valid(udp_latency_valid),
+        .classification_latency_valid(classification_latency_valid),
+        .statistics_latency_valid(statistics_latency_valid),
+        .latency_counter_overflow(latency_counter_overflow)
     );
 
     always #5 clk = ~clk;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            market_message_seen <= 1'b0;
+            market_class_seen <= 1'b0;
+            ethernet_latency_seen <= 1'b0;
+            ipv4_latency_seen <= 1'b0;
+            udp_latency_seen <= 1'b0;
+            classification_latency_seen <= 1'b0;
+            statistics_latency_seen <= 1'b0;
+        end else begin
+            if (market_message_valid) market_message_seen <= 1'b1;
+            if (class_valid && packet_class == CLASS_MARKET_DATA &&
+                allow_packet && !drop_packet) market_class_seen <= 1'b1;
+            if (ethernet_latency_valid) ethernet_latency_seen <= 1'b1;
+            if (ipv4_latency_valid) ipv4_latency_seen <= 1'b1;
+            if (udp_latency_valid) udp_latency_seen <= 1'b1;
+            if (classification_latency_valid) classification_latency_seen <= 1'b1;
+            if (statistics_latency_valid) statistics_latency_seen <= 1'b1;
+        end
+    end
 
     task reset_dut;
         begin
@@ -164,6 +241,7 @@ module tb_top_packet_processor;
             clear_counters = 1'b0;
             stats_rd_en    = 1'b0;
             stats_addr     = 4'd0;
+            out_ready      = 1'b1;
 
             repeat (3) @(negedge clk);
             rst_n = 1'b1;
@@ -182,6 +260,10 @@ module tb_top_packet_processor;
             valid_in = 1'b1;
             sop_in   = sop_value;
             eop_in   = eop_value;
+
+            while (!in_ready) begin
+                @(negedge clk);
+            end
 
             @(negedge clk);
             data_in  = 8'h00;
@@ -280,6 +362,14 @@ module tb_top_packet_processor;
             send_ethernet_header(16'h0800, 1'b0);
             send_ipv4_header(8'd17, src_ip_value, dst_ip_value);
             send_udp_header(src_port_value, dst_port_value);
+        end
+    endtask
+
+    task send_generated_market_packet;
+        integer index;
+        begin
+            for (index = 0; index < 59; index = index + 1)
+                send_byte(market_frame[index], index == 0, index == 58);
         end
     endtask
 
@@ -397,16 +487,41 @@ module tb_top_packet_processor;
         $dumpvars(0, tb_top_packet_processor);
 
         clk = 1'b0;
+        $readmemh("sim/market_packet.hex", market_frame);
 
         reset_dut();
 
         $display("Starting top_packet_processor integration tests...");
 
-        // TEST 1: Market-data packet
+        // TEST 1: Python-generated 59-byte market-data frame. Classification
+        // occurs at the UDP header; decoding completes at the payload EOP.
         drop_unknown = 1'b1;
-        send_udp_packet(16'd5000, 16'd6000, 32'h0A000001, 32'h0A000002);
-        check_class(CLASS_MARKET_DATA, 1'b1, 1'b0, "TEST 1");
-        wait_for_stats_update();
+        send_generated_market_packet();
+        repeat (3) @(negedge clk);
+
+        if (!market_class_seen)
+            $fatal(1, "TEST 1: market classification/allow decision was not observed");
+        if (!market_message_seen || market_decoder_error)
+            $fatal(1, "TEST 1: decoded message completion failed");
+        if (market_message_type != 1 || market_symbol != "AAPL" ||
+            market_price != 18525 || market_quantity != 100 ||
+            market_sequence_number != 42)
+            $fatal(1, "TEST 1: decoded market fields did not match the generated frame");
+        if (ip_total_length != 45 || udp_length != 25)
+            $fatal(1, "TEST 1: expected IPv4/UDP lengths 45/25, got %0d/%0d",
+                   ip_total_length, udp_length);
+        check_counter(total_ipv4_bytes, 32'd45, "market packet IPv4 bytes");
+
+        if (!ethernet_latency_seen || !ipv4_latency_seen || !udp_latency_seen ||
+            !classification_latency_seen || !statistics_latency_seen)
+            $fatal(1, "TEST 1: one or more latency valid pulses were not observed");
+        if (latency_counter_overflow)
+            $fatal(1, "TEST 1: latency counter overflowed");
+        if (!(ethernet_latency < ipv4_latency && ipv4_latency < udp_latency &&
+              udp_latency <= classification_latency &&
+              classification_latency <= statistics_latency))
+            $fatal(1, "TEST 1: latency milestones were not monotonic");
+        $display("TEST 1 end-to-end market decode and latency checks PASSED.");
 
         // TEST 2: DNS packet
         send_udp_packet(16'd40000, 16'd53, 32'h0A000003, 32'h0A000004);
@@ -453,8 +568,8 @@ module tb_top_packet_processor;
         check_counter(non_ipv4_packets,           32'd1,  "non_ipv4_packets");
         check_counter(malformed_packets,          32'd1,  "malformed_packets");
 
-        // Five valid IPv4 UDP packets, each with IPv4 total length 28 bytes.
-        check_counter(total_ipv4_bytes,           32'd140, "total_ipv4_bytes");
+        // One 45-byte market IPv4 packet plus four 28-byte IPv4 UDP packets.
+        check_counter(total_ipv4_bytes,           32'd157, "total_ipv4_bytes");
 
         read_stat_register(4'd0, 32'd7,   "STAT_TOTAL_PACKETS");
         read_stat_register(4'd1, 32'd4,   "STAT_ALLOWED_PACKETS");
@@ -462,7 +577,7 @@ module tb_top_packet_processor;
         read_stat_register(4'd5, 32'd1,   "STAT_MARKET_PACKETS");
         read_stat_register(4'd6, 32'd1,   "STAT_DNS_PACKETS");
         read_stat_register(4'd10, 32'd2,  "STAT_UNKNOWN_PACKETS");
-        read_stat_register(4'd11, 32'd140, "STAT_TOTAL_IPV4_BYTES");
+        read_stat_register(4'd11, 32'd157, "STAT_TOTAL_IPV4_BYTES");
 
         $display("Testing clear_counters...");
 

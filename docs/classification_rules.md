@@ -52,3 +52,11 @@ A packet is classified as market data if:
 ```text
 IP protocol = UDP
 AND source or destination port is between 5000 and 6000
+```
+
+
+## Transport Qualification
+
+Market and DNS rules require UDP. Web rules require TCP. Control ports are
+considered only for UDP or TCP. Other IPv4 protocols are classified with zero
+layer-4 ports, preventing stale metadata from matching port-based rules.
