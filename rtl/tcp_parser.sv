@@ -102,14 +102,20 @@ module tcp_parser (
                                 8'd47: tcp_flags <= data_in;
                                 8'd53: begin
                                     tcp_header_valid <= 1'b1;
-                                    state <= eop_in ? IDLE : SKIP_PACKET;
+                                    if (eop_in)
+                                        state <= IDLE;
+                                    else
+                                        state <= SKIP_PACKET;
                                 end
                                 default: begin end
                             endcase
 
                             if ((packet_byte_index == 8'd13) &&
                                 ({ethertype_temp[15:8], data_in} != 16'h0800)) begin
-                                state <= eop_in ? IDLE : SKIP_PACKET;
+                                if (eop_in)
+                                    state <= IDLE;
+                                else
+                                    state <= SKIP_PACKET;
                             end else if (eop_in && (packet_byte_index < 8'd53)) begin
                                 if (((packet_byte_index == 8'd23) &&
                                      (data_in == 8'd6)) ||

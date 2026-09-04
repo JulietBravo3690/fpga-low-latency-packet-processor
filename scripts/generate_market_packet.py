@@ -5,6 +5,7 @@ import argparse
 import ipaddress
 import struct
 from pathlib import Path
+from typing import Optional
 
 MARKET_PAYLOAD_FORMAT = ">B4sIII"
 MARKET_PAYLOAD_LENGTH = struct.calcsize(MARKET_PAYLOAD_FORMAT)
@@ -66,8 +67,8 @@ def build_market_packet(*, message_type: int = 1, symbol: str = "AAPL",
     return ethernet + ipv4 + udp + payload
 
 
-def emit_packet(packet: bytes, *, binary_output: Path | None = None,
-                hex_output: Path | None = None, sv_array: bool = False) -> None:
+def emit_packet(packet: bytes, *, binary_output: Optional[Path] = None,
+                hex_output: Optional[Path] = None, sv_array: bool = False) -> None:
     """Emit one selected machine-readable format, or a readable summary."""
     if binary_output is not None:
         binary_output.parent.mkdir(parents=True, exist_ok=True)
